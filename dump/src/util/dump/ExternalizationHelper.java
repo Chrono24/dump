@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -45,8 +46,11 @@ import util.dump.stream.ExternalizableObjectOutputStream;
 @SuppressWarnings({ "unchecked", "ForLoopReplaceableByForEach", "WeakerAccess", "rawtypes" })
 class ExternalizationHelper {
 
-   private static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of(Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class,
+   public static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of(Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class,
          Float.class, Double.class, String.class, Enum.class);
+   public static final Set<Class<?>> IMPLEMENTED_CLASSES  = Arrays.stream(FieldType.values())
+         .<Class<?>>map(ft -> ft._class)
+         .collect(Collectors.toUnmodifiableSet());
 
    private static final long serialVersionUID = -1816997029156670474L;
 
@@ -218,7 +222,7 @@ class ExternalizationHelper {
             case 2:
                return List.of(instanceReader.get(), instanceReader.get());
             }
-         case "java.util.ImmutableCollections$ListM":
+         case "java.util.ImmutableCollections$ListN":
             d = new ArrayList<>(size);
             containerType = ContainerType.ImmutableList;
             break;
