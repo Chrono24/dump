@@ -28,8 +28,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +56,9 @@ class ExternalizationHelper {
 
    private static final Map<Class, ClassConfig> CLASS_CONFIGS = new ConcurrentHashMap<>();
 
-   static final Map<Class, Boolean>      CLASS_CHANGED_INCOMPATIBLY = new ConcurrentHashMap<>();
-   static final ThreadLocal<StreamCache> STREAM_CACHE               = ThreadLocal.withInitial(StreamCache::new);
+   static final Map<Class, Boolean> CLASS_CHANGED_INCOMPATIBLY = new ConcurrentHashMap<>();
+
+   static final ThreadLocal<Recycler<StreamCache>> STREAM_CACHES = ThreadLocal.withInitial(() -> new Recycler<>(4, StreamCache::new));
 
    static {
       try {
@@ -1439,6 +1442,53 @@ class ExternalizationHelper {
          catch ( IOException argh ) {
             // insane, cannot happen
          }
+      }
+   }
+
+
+   static class Recycler<E> {
+
+      private final Stack<E>    _stack;
+      private final Supplier<E> _elementConstructor;
+
+      public Recycler( int initialCapacity, Supplier<E> elementConstructor ) {
+         _stack = new Stack<>(initialCapacity);
+         _elementConstructor = elementConstructor;
+      }
+
+      public E acquire() {
+         return _stack.isEmpty() ? _elementConstructor.get() : _stack.pop();
+      }
+
+      public void release( E element ) {
+         _stack.push(element);
+      }
+   }
+
+
+   static class Stack<E> {
+
+      private final List<E> _elements;
+
+      public Stack( int initialCapacity ) {
+         _elements = new ArrayList<>(initialCapacity);
+      }
+
+      public boolean isEmpty() {
+         return _elements.isEmpty();
+      }
+
+      @Nullable
+      public E pop() {
+         if ( _elements.isEmpty() ) {
+            return null;
+         }
+
+         return _elements.remove(_elements.size() - 1);
+      }
+
+      public void push( @Nonnull E element ) {
+         _elements.add(element);
       }
    }
 }

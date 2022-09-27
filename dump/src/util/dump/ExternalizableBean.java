@@ -3,7 +3,7 @@ package util.dump;
 import static java.time.ZoneId.of;
 import static java.time.ZoneOffset.UTC;
 import static util.dump.ExternalizationHelper.CLASS_CHANGED_INCOMPATIBLY;
-import static util.dump.ExternalizationHelper.STREAM_CACHE;
+import static util.dump.ExternalizationHelper.STREAM_CACHES;
 import static util.dump.ExternalizationHelper.forName;
 import static util.dump.ExternalizationHelper.getConfig;
 import static util.dump.ExternalizationHelper.readBoolean;
@@ -793,6 +793,7 @@ public interface ExternalizableBean extends Externalizable {
 
    @Override
    default void writeExternal( ObjectOutput out ) throws IOException {
+      StreamCache streamCache = null;
       try {
          ClassConfig _config = getConfig(getClass());
 
@@ -804,7 +805,6 @@ public interface ExternalizableBean extends Externalizable {
          }
 
          ObjectOutput originalOut = out;
-         StreamCache streamCache = null;
          BytesCache bytesCache = null;
          ObjectOutput cachingOut = null;
 
@@ -823,7 +823,7 @@ public interface ExternalizableBean extends Externalizable {
 
             if ( ft.isLengthDynamic() ) {
                if ( streamCache == null ) {
-                  streamCache = STREAM_CACHE.get();
+                  streamCache = STREAM_CACHES.get().acquire();
                   if ( streamCache._inUse ) {
                      // if our instance contains another instance of the same type, we cannot re-use the stream cache, so we create a fresh one
                      streamCache = new StreamCache();
@@ -1190,6 +1190,12 @@ public interface ExternalizableBean extends Externalizable {
       }
       catch ( Exception e ) {
          throw new RuntimeException("Failed to externalize class " + getClass().getName(), e);
+      }
+      finally {
+         if ( streamCache != null ) {
+            streamCache._inUse = false;
+            STREAM_CACHES.get().release(streamCache);
+         }
       }
    }
 
