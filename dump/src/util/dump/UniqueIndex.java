@@ -310,12 +310,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    }
 
    @Override
-   protected void init() {
-      super.init();
-      compactLookup();
-   }
-
-   @Override
    protected void initFromDump() {
       super.initFromDump();
 
@@ -377,7 +371,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          boolean mayEOF = true;
          if ( _fieldIsInt ) {
             int size = (int)(getLookupFile().length() / (4 + 8));
-            size = Math.max(10000, size + 1000);
+            size = getHeadroomForLoad(size);
             _lookupInt = new TIntLongHashMap(size);
             DataInputStream in = null;
             try {
@@ -424,7 +418,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             }
          } else if ( _fieldIsLong ) {
             int size = (int)(getLookupFile().length() / (8 + 8));
-            size = Math.max(10000, size + 1000);
+            size = getHeadroomForLoad(size);
             _lookupLong = new TLongLongHashMap(size);
             DataInputStream in = null;
             try {
@@ -471,7 +465,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             }
          } else if ( _fieldIsString ) {
             int size = (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
-            size = Math.max(10000, size + 1000);
+            size = getHeadroomForLoad(size);
             _lookupObject = new TObjectLongHashMap(size);
             DataInputStream in = null;
             try {
@@ -518,7 +512,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             }
          } else {
             int size = (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
-            size = Math.max(10000, size + 1000);
+            size = getHeadroomForLoad(size);
             _lookupObject = new TObjectLongHashMap(size);
             ObjectInput in = null;
             try {
@@ -582,6 +576,10 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             }
          }
       }
+   }
+
+   private static int getHeadroomForLoad( int size ) {
+      return size * 11 / 10; // 10% should be more than enough headroom to avoid involuntary rehashing
    }
 
    protected long readNextPosition( DataInputStream updatesInput ) {
