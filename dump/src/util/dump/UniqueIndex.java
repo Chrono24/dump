@@ -215,9 +215,26 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    protected boolean checkMeta() {
       IndexMeta indexMeta = new IndexMeta();
       checkMeta(_dump, getMetaFile(), getIndexType(), indexMeta);
+
       int lookupSize = Integer.parseInt(indexMeta._metaData.getOrDefault("lookupSize", "" + Constants.DEFAULT_CAPACITY));
+      if ( lookupSize <= Constants.DEFAULT_CAPACITY && getLookupFile().exists() ) {
+         lookupSize = getLookupSizeFromFile();
+      }
       _lookupSize = Math.max(_lookupSize, lookupSize);
+
       return indexMeta._valid;
+   }
+
+   private int getLookupSizeFromFile() {
+      if ( _fieldIsInt ) {
+         return (int)(getLookupFile().length() / (4 + 8));
+      } else if ( _fieldIsLong ) {
+         return (int)(getLookupFile().length() / (8 + 8));
+      } else if ( _fieldIsString ) {
+         return (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
+      } else {
+         return (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
+      }
    }
 
    public E lookup( int key ) {
@@ -398,9 +415,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
 
          boolean mayEOF = true;
+         final int size = getHeadroomForLoad(getLookupSizeFromFile());
          if ( _fieldIsInt ) {
-            int size = (int)(getLookupFile().length() / (4 + 8));
-            size = getHeadroomForLoad(size);
             _lookupInt = new TIntLongHashMap(size);
             long noEntry = _lookupInt.getNoEntryValue();
             DataInputStream in = null;
@@ -448,8 +464,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else if ( _fieldIsLong ) {
-            int size = (int)(getLookupFile().length() / (8 + 8));
-            size = getHeadroomForLoad(size);
             _lookupLong = new TLongLongHashMap(size);
             long noEntry = _lookupLong.getNoEntryValue();
             DataInputStream in = null;
@@ -497,8 +511,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else if ( _fieldIsString ) {
-            int size = (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
-            size = getHeadroomForLoad(size);
             _lookupObject = new TObjectLongHashMap(size);
             long noEntry = _lookupObject.getNoEntryValue();
             DataInputStream in = null;
@@ -546,8 +558,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else {
-            int size = (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
-            size = getHeadroomForLoad(size);
             _lookupObject = new TObjectLongHashMap(size);
             long noEntry = _lookupObject.getNoEntryValue();
             ObjectInput in = null;
