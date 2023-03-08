@@ -9,10 +9,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.RandomAccessFile;
 import java.security.AccessControlException;
 import java.util.Collection;
 
 import gnu.trove.TLongCollection;
+import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
@@ -32,13 +34,17 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    protected TLongLongHashMap   _lookupLong;
    protected TIntLongHashMap    _lookupInt;
 
+   private int _lookupSize = Constants.DEFAULT_CAPACITY;
+
    public UniqueIndex( Dump<E> dump, FieldAccessor fieldAccessor ) {
       super(dump, fieldAccessor);
+      checkMeta();  // try and read previous lookup size
       init();
    }
 
    public UniqueIndex( Dump<E> dump, String fieldName ) throws NoSuchFieldException {
       super(dump, fieldName);
+      checkMeta();  // try and read previous lookup size
       init();
    }
 
@@ -205,6 +211,15 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       throw new IllegalStateException("weird, all lookup maps are null");
    }
 
+   @Override
+   protected boolean checkMeta() {
+      IndexMeta indexMeta = new IndexMeta();
+      checkMeta(_dump, getMetaFile(), getIndexType(), indexMeta);
+      int lookupSize = Integer.parseInt(indexMeta._metaData.getOrDefault("lookupSize", "" + Constants.DEFAULT_CAPACITY));
+      _lookupSize = Math.max(_lookupSize, lookupSize);
+      return indexMeta._valid;
+   }
+
    public E lookup( int key ) {
       synchronized ( _dump ) {
          if ( !_fieldIsInt ) {
@@ -311,6 +326,10 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
    @Override
    protected void initFromDump() {
+      if ( _lookupSize > Constants.DEFAULT_CAPACITY ) {
+         initLookupMap(getHeadroomForLoad(_lookupSize));
+      }
+
       super.initFromDump();
 
       try {
@@ -318,6 +337,16 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       }
       catch ( IOException argh ) {
          throw new RuntimeException("Failed to delete updates file " + getUpdatesFile(), argh);
+      }
+   }
+
+   private void initLookupMap( int size ) {
+      if ( _fieldIsInt ) {
+         _lookupInt = new TIntLongHashMap(size);
+      } else if ( _fieldIsLong ) {
+         _lookupLong = new TLongLongHashMap(size);
+      } else {
+         _lookupObject = new TObjectLongHashMap(size);
       }
    }
 
@@ -583,6 +612,24 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                throw new RuntimeException("Failed to close updates stream.", argh);
             }
          }
+      }
+   }
+
+   @Override
+   protected void writeMeta() throws IOException {
+      super.writeMeta();
+      RandomAccessFile metaRAF = getMetaRAF();
+      metaRAF.writeUTF("lookupSize");
+      metaRAF.writeUTF("" + getLookupSize());
+   }
+
+   private int getLookupSize() {
+      if ( _fieldIsInt ) {
+         return _lookupInt.size();
+      } else if ( _fieldIsLong ) {
+         return _lookupLong.size();
+      } else {
+         return _lookupObject.size();
       }
    }
 
