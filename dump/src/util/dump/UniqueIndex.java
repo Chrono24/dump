@@ -412,12 +412,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       }
 
       DataInputStream updatesInput = null;
-      TLongIntMap positionsToIgnore = new TLongIntHashMap();
+      final TLongIntMap positionsToIgnore;
       try {
          if ( getUpdatesFile().exists() ) {
             if ( getUpdatesFile().length() % 8 != 0 ) {
                throw new RuntimeException("Index corrupted: " + getUpdatesFile() + " has unbalanced size.");
             }
+            positionsToIgnore = new TLongIntHashMap((int)(getUpdatesFile().length() / 8));
             try {
                updatesInput = new DataInputStream(new BufferedInputStream(new FileInputStream(getUpdatesFile()), DumpReader.DEFAULT_BUFFER_SIZE));
                long pos;
@@ -429,6 +430,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                // since we do a _updatesFile.exists() this is most unlikely
                throw new RuntimeException("Failed read updates from " + getUpdatesFile(), argh);
             }
+         } else {
+            positionsToIgnore = new TLongIntHashMap();
          }
       }
       finally {
