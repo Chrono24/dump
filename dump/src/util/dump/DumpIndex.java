@@ -312,6 +312,7 @@ public abstract class DumpIndex<E> implements Closeable {
             LOG.warn("Failed to load index, will delete and init from dump", e);
             if ( retry ) {
                deleteAllIndexFiles();
+               initLookupMap();
                createOrLoad(false);
             } else {
                throw e;
