@@ -125,7 +125,7 @@ public abstract class DumpIndex<E> implements Closeable {
    private final   File             _metaFile;
    private         RandomAccessFile _metaRaf;
    protected       DataOutputStream _lookupOutputStream;
-   private         FileChannel      _lookupOutputStreamChannel;
+   protected       FileChannel      _lookupOutputStreamChannel;
    protected final FieldAccessor    _fieldAccessor;
    protected final boolean          _fieldIsInt;
    protected final boolean          _fieldIsIntObject;

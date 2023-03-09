@@ -35,6 +35,14 @@ public class UniqueIndexTest {
    private static final int    BEAN_SIZE     = 10;
    private static       File   _tmpdir;
 
+   protected <E> UniqueIndex<E> newUniqueIndex( Dump<E> dump, String fieldName ) throws NoSuchFieldException {
+      return new UniqueIndex<>(dump, fieldName);
+   }
+
+   protected <E> UniqueIndex<E> newUniqueIndex( Dump<E> dump, FieldFieldAccessor fieldAccessor ) {
+      return new UniqueIndex<>(dump, fieldAccessor);
+   }
+
    @Parameters
    public static Collection<Object[]> getDumpSizesToTestFor() {
       List<Object[]> parameters = new ArrayList<>();
@@ -102,7 +110,6 @@ public class UniqueIndexTest {
             return new ExternalizableId(id);
          }
       });
-
    }
 
    @Test
@@ -119,8 +126,8 @@ public class UniqueIndexTest {
          dump.close();
          dump = new Dump<>(Bean.class, dumpFile);
 
-         DumpIndex<Bean> intIndex = new UniqueIndex<>(dump, "_idInt");
-         DumpIndex<Bean> longIndex = new UniqueIndex<>(dump, "_idLong");
+         DumpIndex<Bean> intIndex = newUniqueIndex(dump, "_idInt");
+         DumpIndex<Bean> longIndex = newUniqueIndex(dump, "_idLong");
          DumpIndex<Bean> stringIndex = new UniqueIndex<>(dump, "_idString");
 
          assertThat(longIndex.getNumKeys()).isEqualTo(numBeansToAddForTest);
@@ -184,7 +191,7 @@ public class UniqueIndexTest {
       Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
       try {
          Field field = Reflection.getField(Bean.class, "_idInt");
-         UniqueIndex<Bean> index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         UniqueIndex<Bean> index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          validateNumKeys(dump, index);
 
@@ -199,7 +206,7 @@ public class UniqueIndexTest {
                new File(_tmpdir, DUMP_FILENAME + "._idInt.lookup").delete() && !new File(_tmpdir, DUMP_FILENAME + "._idInt.lookup").exists());
 
          dump = new Dump<>(Bean.class, dumpFile);
-         index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          long t = System.currentTimeMillis();
          for ( int j = 0; j < READ_NUMBER; j++ ) {
@@ -242,7 +249,7 @@ public class UniqueIndexTest {
       Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
       try {
          Field field = Reflection.getField(Bean.class, fieldName);
-         UniqueIndex<Bean> index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         UniqueIndex<Bean> index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          fillDump(dump);
 
@@ -255,7 +262,7 @@ public class UniqueIndexTest {
          System.out.println("Closing and re-opening dump");
 
          dump = new Dump<>(Bean.class, dumpFile);
-         index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          validateNumKeys(dump, index);
 
@@ -343,7 +350,7 @@ public class UniqueIndexTest {
          System.out.println("Closing and re-opening dump");
 
          dump = new Dump<>(Bean.class, dumpFile);
-         index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          validateNumKeys(dump, index);
 
@@ -364,7 +371,7 @@ public class UniqueIndexTest {
          }
          /* re-open, enforcing the index to be re-created */
          dump = new Dump<>(Bean.class, dumpFile);
-         index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          validateNumKeys(dump, index);
 
@@ -400,7 +407,7 @@ public class UniqueIndexTest {
          Field field = Reflection.getField(Bean.class, fieldName);
 
          fillDump(dump);
-         UniqueIndex<Bean> index = new UniqueIndex<>(dump, new FieldFieldAccessor(field));
+         UniqueIndex<Bean> index = newUniqueIndex(dump, new FieldFieldAccessor(field));
 
          testLookup(config, field, index);
       }

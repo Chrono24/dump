@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.security.AccessControlException;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 
 import org.junit.After;
 import org.junit.Before;
@@ -24,6 +25,10 @@ import util.dump.ExternalizableBeanTest.TestBeanPadding;
 
 
 public class DumpTest {
+
+   protected <E> UniqueIndex<E> newUniqueIndex(Dump<E> dump, String fieldName) throws NoSuchFieldException {
+      return new UniqueIndex<>(dump, fieldName);
+   }
 
    @Before
    @After
@@ -52,7 +57,7 @@ public class DumpTest {
          dump.add(new Bean(1));
          dump.delete(0);
          dump.add(new Bean(1));
-         new UniqueIndex<>(dump, "_id");
+         newUniqueIndex(dump, "_id");
       }
    }
 
@@ -204,7 +209,7 @@ public class DumpTest {
    public void testReOpening() throws IOException, NoSuchFieldException {
       File dumpFile = new File("DumpTest.dmp");
       Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
-      UniqueIndex<Bean> index = new UniqueIndex<>(dump, "_id");
+      UniqueIndex<Bean> index = newUniqueIndex(dump, "_id");
       for ( int j = 0; j < 100000; j++ ) {
          dump.add(new Bean(j));
       }
@@ -221,7 +226,7 @@ public class DumpTest {
       dump.close();
 
       dump = new Dump<>(Bean.class, dumpFile);
-      index = new UniqueIndex<>(dump, "_id");
+      index = newUniqueIndex(dump, "_id");
       for ( int j = 100000; j < 200000; j++ ) {
          dump.add(new Bean(j));
       }

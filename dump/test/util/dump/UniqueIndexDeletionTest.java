@@ -18,6 +18,11 @@ public class UniqueIndexDeletionTest {
    private static final String DUMP_FILENAME = "UniqueIndexDeletionTest.dmp";
    private static       File   _tmpdir;
 
+   protected <E> UniqueIndex<E> newUniqueIndex(Dump<E> dump, String fieldName) throws NoSuchFieldException {
+      return new UniqueIndex<>(dump, fieldName);
+   }
+
+
    @BeforeClass
    public static void setUpTmpdir() throws IOException {
       _tmpdir = new File("target", "tmp");
@@ -47,7 +52,7 @@ public class UniqueIndexDeletionTest {
       Dump<UniqueIndexTest.Bean> dump = null;
       try {
          dump = new Dump<>(UniqueIndexTest.Bean.class, dumpFile);
-         UniqueIndex<UniqueIndexTest.Bean> intIndex = new UniqueIndex<>(dump, "_idInt");
+         UniqueIndex<UniqueIndexTest.Bean> intIndex = newUniqueIndex(dump, "_idInt");
          UniqueIndex<UniqueIndexTest.Bean> stringIndex = new UniqueIndex<>(dump, "_idString");
 
          dump.add(new UniqueIndexTest.Bean(1, "data"));
@@ -68,7 +73,7 @@ public class UniqueIndexDeletionTest {
          Arrays.stream(Objects.requireNonNull(_tmpdir.listFiles(s -> s.getName().contains("_idString")))).forEach(File::delete);
 
          dump = new Dump<>(UniqueIndexTest.Bean.class, dumpFile);
-         intIndex = new UniqueIndex<>(dump, "_idInt");
+         intIndex = newUniqueIndex(dump, "_idInt");
          stringIndex = new UniqueIndex<>(dump, "_idString");
 
          bean = intIndex.lookup(1);

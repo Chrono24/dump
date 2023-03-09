@@ -25,6 +25,10 @@ public class DumpUtilsTest {
 
    private static final int NUMBER_OF_INSTANCES = 10000;
 
+   protected <E> UniqueIndex<E> newUniqueIndex(Dump<E> dump, String fieldName) throws NoSuchFieldException {
+      return new UniqueIndex<>(dump, fieldName);
+   }
+
    @Before
    @After
    public void deleteOldTestDumps() {
@@ -143,7 +147,7 @@ public class DumpUtilsTest {
       try {
          File dumpFile = File.createTempFile("dump", ".tmp", tmpDir);
          Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
-         UniqueIndex<Bean> index = new UniqueIndex<>(dump, "_id");
+         UniqueIndex<Bean> index = newUniqueIndex(dump, "_id");
          dump.add(new Bean(1));
 
          DumpUtils.deleteDumpIndexFiles(dump);

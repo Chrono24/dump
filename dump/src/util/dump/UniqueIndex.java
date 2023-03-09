@@ -233,7 +233,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       return indexMeta._valid;
    }
 
-   private int getLookupSizeFromFiles() {
+   protected int getLookupSizeFromFiles() {
       int lookupPositions;
       if ( _fieldIsInt ) {
          lookupPositions = (int)(getLookupFile().length() / (4 + 8));
@@ -368,7 +368,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       }
    }
 
-   private void initLookupMap( int size ) {
+   protected void initLookupMap( int size ) {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntLongHashMap(size);
          _noEntry = _lookupInt.getNoEntryValue();
@@ -656,7 +656,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       }
    }
 
-   private static int getHeadroomForLoad( int size ) {
+   protected static int getHeadroomForLoad( int size ) {
       return size * 11 / 10; // 10% should be more than enough headroom to avoid involuntary rehashing
    }
 
@@ -725,7 +725,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
        * This is handled during load() using getUpdatesFile() */
    }
 
-   private void addToIgnoredPositions( long pos ) {
+   protected void addToIgnoredPositions( long pos ) {
       try {
          // we add this position to the stream of ignored positions used during load()
          getUpdatesOutput().writeLong(pos);
