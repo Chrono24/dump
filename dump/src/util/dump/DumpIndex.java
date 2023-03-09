@@ -25,12 +25,12 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.list.TLongList;
 import util.dump.Dump.DumpAccessFlag;
-import util.dump.stream.ExternalizableObjectOutputStream;
-import util.dump.stream.SingleTypeObjectOutputStream;
 import util.dump.io.IOUtils;
 import util.dump.reflection.FieldAccessor;
 import util.dump.reflection.FieldFieldAccessor;
 import util.dump.reflection.Reflection;
+import util.dump.stream.ExternalizableObjectOutputStream;
+import util.dump.stream.SingleTypeObjectOutputStream;
 
 
 /**
@@ -139,7 +139,8 @@ public abstract class DumpIndex<E> implements Closeable {
 
    /**
     * Creates an index and adds it to the {@link Dump}.
-    * @param dump the parent dump to add this index to
+    *
+    * @param dump          the parent dump to add this index to
     * @param fieldAccessor the accessor to the field containing the index key
     */
    public DumpIndex( Dump<E> dump, FieldAccessor fieldAccessor ) {
