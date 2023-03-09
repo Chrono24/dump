@@ -104,7 +104,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             throw new IllegalArgumentException(
                   "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate contains(.) method.");
          }
-         return _lookupInt.containsKey(key) && !_dump._deletedPositions.contains(_lookupInt.get(key));
+         long pos = _lookupInt.get(key);
+         return pos != _noEntry && !_dump._deletedPositions.contains(pos);
       }
    }
 
@@ -115,7 +116,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             throw new IllegalArgumentException(
                   "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate contains(.) method.");
          }
-         return _lookupLong.containsKey(key) && !_dump._deletedPositions.contains(_lookupLong.get(key));
+         long pos = _lookupLong.get(key);
+         return pos != _noEntry && !_dump._deletedPositions.contains(pos);
       }
    }
 
@@ -132,7 +134,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             throw new IllegalArgumentException(
                   "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate contains(.) method.");
          }
-         return _lookupObject.containsKey(key) && !_dump._deletedPositions.contains(_lookupObject.get(key));
+         long pos = _lookupObject.get(key);
+         return pos != _noEntry && !_dump._deletedPositions.contains(pos);
       }
    }
 
