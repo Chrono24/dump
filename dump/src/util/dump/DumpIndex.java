@@ -136,6 +136,7 @@ public abstract class DumpIndex<E> implements Closeable {
 
    private final File             _updatesFile;
    private       DataOutputStream _updatesOutput;
+   protected     FileChannel      _updatesOutputStreamChannel;
 
    /**
     * Creates an index and adds it to the {@link Dump}.
@@ -231,6 +232,10 @@ public abstract class DumpIndex<E> implements Closeable {
       if ( _lookupOutputStream != null ) {
          _lookupOutputStream.flush();
          _lookupOutputStreamChannel.force(false);
+      }
+      if ( _updatesOutput != null ) {
+         _updatesOutput.flush();
+         _updatesOutputStreamChannel.force(false);
       }
    }
 
@@ -401,7 +406,9 @@ public abstract class DumpIndex<E> implements Closeable {
       synchronized ( _dump ) {
          if ( _updatesOutput == null ) {
             try {
-               _updatesOutput = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(_updatesFile, true), DumpWriter.DEFAULT_BUFFER_SIZE));
+               FileOutputStream fileOutputStream = new FileOutputStream(_updatesFile, true);
+               _updatesOutputStreamChannel = fileOutputStream.getChannel();
+               _updatesOutput = new DataOutputStream(new BufferedOutputStream(fileOutputStream, DumpWriter.DEFAULT_BUFFER_SIZE));
             }
             catch ( IOException argh ) {
                throw new RuntimeException("Failed to init updates outputstream " + _updatesFile, argh);
