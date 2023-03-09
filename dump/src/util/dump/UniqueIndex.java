@@ -218,23 +218,26 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
       int lookupSize = Integer.parseInt(indexMeta._metaData.getOrDefault("lookupSize", "" + Constants.DEFAULT_CAPACITY));
       if ( lookupSize <= Constants.DEFAULT_CAPACITY && getLookupFile().exists() ) {
-         lookupSize = getLookupSizeFromFile();
+         lookupSize = getLookupSizeFromFiles();
       }
       _lookupSize = Math.max(_lookupSize, lookupSize);
 
       return indexMeta._valid;
    }
 
-   private int getLookupSizeFromFile() {
+   private int getLookupSizeFromFiles() {
+      int lookupPositions;
       if ( _fieldIsInt ) {
-         return (int)(getLookupFile().length() / (4 + 8));
+         lookupPositions = (int)(getLookupFile().length() / (4 + 8));
       } else if ( _fieldIsLong ) {
-         return (int)(getLookupFile().length() / (8 + 8));
+         lookupPositions = (int)(getLookupFile().length() / (8 + 8));
       } else if ( _fieldIsString ) {
-         return (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
+         lookupPositions = (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
       } else {
-         return (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
+         lookupPositions = (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
       }
+      int updatedPositions = !getUpdatesFile().exists() ? 0 : (int)(getUpdatesFile().length() / 8);
+      return lookupPositions - updatedPositions;
    }
 
    public E lookup( int key ) {
@@ -415,7 +418,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
 
          boolean mayEOF = true;
-         final int size = getHeadroomForLoad(getLookupSizeFromFile());
+         final int size = getHeadroomForLoad(getLookupSizeFromFiles());
          if ( _fieldIsInt ) {
             _lookupInt = new TIntLongHashMap(size);
             long noEntry = _lookupInt.getNoEntryValue();
