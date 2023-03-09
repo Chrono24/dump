@@ -34,6 +34,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    protected TLongLongHashMap   _lookupLong;
    protected TIntLongHashMap    _lookupInt;
 
+   protected long _noEntry;
+
    private int _lookupSize = Constants.DEFAULT_CAPACITY;
 
    public UniqueIndex( Dump<E> dump, FieldAccessor fieldAccessor ) {
@@ -53,27 +55,30 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       try {
          if ( _fieldIsInt ) {
             int key = getIntKey(o);
-            if ( _lookupInt.containsKey(key) ) {
+            long previousEntry = _lookupInt.put(key, pos);
+            if (previousEntry != _noEntry) {
+               _lookupInt.put(key, previousEntry);
                throw new DuplicateKeyException("Dump already contains an instance with the key " + key);
             }
-            _lookupInt.put(key, pos);
             _lookupOutputStream.writeInt(key);
          } else if ( _fieldIsLong ) {
             long key = getLongKey(o);
-            if ( _lookupLong.containsKey(key) ) {
+            long previousEntry = _lookupLong.put(key, pos);
+            if (previousEntry != _noEntry) {
+               _lookupLong.put(key, previousEntry);
                throw new DuplicateKeyException("Dump already contains an instance with the key " + key);
             }
-            _lookupLong.put(key, pos);
             _lookupOutputStream.writeLong(key);
          } else {
             Object key = getObjectKey(o);
             if ( key == null ) {
                return;
             }
-            if ( _lookupObject.containsKey(key) ) {
+            long previousEntry = _lookupObject.put(key, pos);
+            if (previousEntry != _noEntry) {
+               _lookupObject.put(key, previousEntry);
                throw new DuplicateKeyException("Dump already contains an instance with the key " + key);
             }
-            _lookupObject.put(key, pos);
             if ( _fieldIsString ) {
                _lookupOutputStream.writeUTF(key.toString());
             } else {
@@ -363,10 +368,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    private void initLookupMap( int size ) {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntLongHashMap(size);
+         _noEntry = _lookupInt.getNoEntryValue();
       } else if ( _fieldIsLong ) {
          _lookupLong = new TLongLongHashMap(size);
+         _noEntry = _lookupLong.getNoEntryValue();
       } else {
          _lookupObject = new TObjectLongHashMap(size);
+         _noEntry = _lookupObject.getNoEntryValue();
       }
    }
 
@@ -374,10 +382,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    protected void initLookupMap() {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntLongHashMap();
+         _noEntry = _lookupInt.getNoEntryValue();
       } else if ( _fieldIsLong ) {
          _lookupLong = new TLongLongHashMap();
+         _noEntry = _lookupLong.getNoEntryValue();
       } else {
          _lookupObject = new TObjectLongHashMap();
+         _noEntry = _lookupObject.getNoEntryValue();
       }
    }
 
@@ -419,9 +430,8 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
          boolean mayEOF = true;
          final int size = getHeadroomForLoad(getLookupSizeFromFiles());
+         initLookupMap(size);
          if ( _fieldIsInt ) {
-            _lookupInt = new TIntLongHashMap(size);
-            long noEntry = _lookupInt.getNoEntryValue();
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -440,7 +450,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                   }
                   if ( !_dump._deletedPositions.contains(pos) ) {
                      long previousEntry = _lookupInt.put(key, pos);
-                     if ( previousEntry != noEntry ) {
+                     if ( previousEntry != _noEntry ) {
                         _lookupInt.put(key, previousEntry);
                         throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
                      }
@@ -467,8 +477,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else if ( _fieldIsLong ) {
-            _lookupLong = new TLongLongHashMap(size);
-            long noEntry = _lookupLong.getNoEntryValue();
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -487,7 +495,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                   }
                   if ( !_dump._deletedPositions.contains(pos) ) {
                      long previousEntry = _lookupLong.put(key, pos);
-                     if ( previousEntry != noEntry ) {
+                     if ( previousEntry != _noEntry ) {
                         _lookupLong.put(key, previousEntry);
                         throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
                      }
@@ -514,8 +522,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else if ( _fieldIsString ) {
-            _lookupObject = new TObjectLongHashMap(size);
-            long noEntry = _lookupObject.getNoEntryValue();
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -534,7 +540,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                   }
                   if ( !_dump._deletedPositions.contains(pos) ) {
                      long previousEntry = _lookupObject.put(key, pos);
-                     if ( previousEntry != noEntry ) {
+                     if ( previousEntry != _noEntry ) {
                         _lookupObject.put(key, previousEntry);
                         throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
                      }
@@ -561,8 +567,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                }
             }
          } else {
-            _lookupObject = new TObjectLongHashMap(size);
-            long noEntry = _lookupObject.getNoEntryValue();
             ObjectInput in = null;
             try {
                if ( _fieldIsExternalizable ) {
@@ -590,7 +594,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                   }
                   if ( !_dump._deletedPositions.contains(pos) ) {
                      long previousEntry = _lookupObject.put(key, pos);
-                     if ( previousEntry != noEntry ) {
+                     if ( previousEntry != _noEntry ) {
                         _lookupObject.put(key, previousEntry);
                         throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
                      }
