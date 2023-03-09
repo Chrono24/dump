@@ -430,198 +430,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
                throw new RuntimeException("Failed read updates from " + getUpdatesFile(), argh);
             }
          }
-
-         boolean mayEOF = true;
-         final int size = getHeadroomForLoad(getLookupSizeFromFiles());
-         initLookupMap(size);
-         if ( _fieldIsInt ) {
-            DataInputStream in = null;
-            try {
-               in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
-               while ( true ) {
-                  Object payload = readPayload(in);
-                  if ( payload != null ) {
-                     mayEOF = false;
-                  }
-                  int key = in.readInt();
-                  mayEOF = false;
-                  long pos = in.readLong();
-                  mayEOF = true;
-                  if ( positionsToIgnore.get(pos) > 0 ) {
-                     positionsToIgnore.adjustValue(pos, -1);
-                     continue;
-                  }
-                  if ( !_dump._deletedPositions.contains(pos) ) {
-                     long previousEntry = _lookupInt.put(key, pos);
-                     if ( previousEntry != _noEntry ) {
-                        _lookupInt.put(key, previousEntry);
-                        throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
-                     }
-                     cachePayload(pos, payload);
-                  }
-               }
-            }
-            catch ( EOFException argh ) {
-               if ( !mayEOF ) {
-                  throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
-               }
-            }
-            catch ( IOException argh ) {
-               throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
-            }
-            finally {
-               if ( in != null ) {
-                  try {
-                     in.close();
-                  }
-                  catch ( IOException argh ) {
-                     throw new RuntimeException("Failed to close input stream.", argh);
-                  }
-               }
-            }
-         } else if ( _fieldIsLong ) {
-            DataInputStream in = null;
-            try {
-               in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
-               while ( true ) {
-                  Object payload = readPayload(in);
-                  if ( payload != null ) {
-                     mayEOF = false;
-                  }
-                  long key = in.readLong();
-                  mayEOF = false;
-                  long pos = in.readLong();
-                  mayEOF = true;
-                  if ( positionsToIgnore.get(pos) > 0 ) {
-                     positionsToIgnore.adjustValue(pos, -1);
-                     continue;
-                  }
-                  if ( !_dump._deletedPositions.contains(pos) ) {
-                     long previousEntry = _lookupLong.put(key, pos);
-                     if ( previousEntry != _noEntry ) {
-                        _lookupLong.put(key, previousEntry);
-                        throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
-                     }
-                     cachePayload(pos, payload);
-                  }
-               }
-            }
-            catch ( EOFException argh ) {
-               if ( !mayEOF ) {
-                  throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
-               }
-            }
-            catch ( IOException argh ) {
-               throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
-            }
-            finally {
-               if ( in != null ) {
-                  try {
-                     in.close();
-                  }
-                  catch ( IOException argh ) {
-                     throw new RuntimeException("Failed to close input stream.", argh);
-                  }
-               }
-            }
-         } else if ( _fieldIsString ) {
-            DataInputStream in = null;
-            try {
-               in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
-               while ( true ) {
-                  Object payload = readPayload(in);
-                  if ( payload != null ) {
-                     mayEOF = false;
-                  }
-                  String key = in.readUTF();
-                  mayEOF = false;
-                  long pos = in.readLong();
-                  mayEOF = true;
-                  if ( positionsToIgnore.get(pos) > 0 ) {
-                     positionsToIgnore.adjustValue(pos, -1);
-                     continue;
-                  }
-                  if ( !_dump._deletedPositions.contains(pos) ) {
-                     long previousEntry = _lookupObject.put(key, pos);
-                     if ( previousEntry != _noEntry ) {
-                        _lookupObject.put(key, previousEntry);
-                        throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
-                     }
-                     cachePayload(pos, payload);
-                  }
-               }
-            }
-            catch ( EOFException argh ) {
-               if ( !mayEOF ) {
-                  throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
-               }
-            }
-            catch ( IOException argh ) {
-               throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
-            }
-            finally {
-               if ( in != null ) {
-                  try {
-                     in.close();
-                  }
-                  catch ( IOException argh ) {
-                     throw new RuntimeException("Failed to close input stream.", argh);
-                  }
-               }
-            }
-         } else {
-            ObjectInput in = null;
-            try {
-               if ( _fieldIsExternalizable ) {
-                  in = new SingleTypeObjectInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())), _fieldAccessor.getType());
-               } else {
-                  in = new ExternalizableObjectInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
-               }
-            }
-            catch ( IOException argh ) {
-               throw new RuntimeException("Failed to initialize dump index with lookup file " + getLookupFile(), argh);
-            }
-            try {
-               while ( true ) {
-                  Object payload = readPayload(in);
-                  if ( payload != null ) {
-                     mayEOF = false;
-                  }
-                  Object key = in.readObject();
-                  mayEOF = false;
-                  long pos = in.readLong();
-                  mayEOF = true;
-                  if ( positionsToIgnore.get(pos) > 0 ) {
-                     positionsToIgnore.adjustValue(pos, -1);
-                     continue;
-                  }
-                  if ( !_dump._deletedPositions.contains(pos) ) {
-                     long previousEntry = _lookupObject.put(key, pos);
-                     if ( previousEntry != _noEntry ) {
-                        _lookupObject.put(key, previousEntry);
-                        throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
-                     }
-                     cachePayload(pos, payload);
-                  }
-               }
-            }
-            catch ( EOFException argh ) {
-               if ( !mayEOF ) {
-                  throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
-               }
-            }
-            catch ( ClassNotFoundException | IOException argh ) {
-               throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
-            }
-            finally {
-               try {
-                  in.close();
-               }
-               catch ( IOException argh ) {
-                  throw new RuntimeException("Failed to close input stream.", argh);
-               }
-            }
-         }
       }
       finally {
          if ( updatesInput != null ) {
@@ -630,6 +438,198 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             }
             catch ( IOException argh ) {
                throw new RuntimeException("Failed to close updates stream.", argh);
+            }
+         }
+      }
+
+      boolean mayEOF = true;
+      final int size = getHeadroomForLoad(getLookupSizeFromFiles());
+      initLookupMap(size);
+      if ( _fieldIsInt ) {
+         DataInputStream in = null;
+         try {
+            in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
+            while ( true ) {
+               Object payload = readPayload(in);
+               if ( payload != null ) {
+                  mayEOF = false;
+               }
+               int key = in.readInt();
+               mayEOF = false;
+               long pos = in.readLong();
+               mayEOF = true;
+               if ( positionsToIgnore.get(pos) > 0 ) {
+                  positionsToIgnore.adjustValue(pos, -1);
+                  continue;
+               }
+               if ( !_dump._deletedPositions.contains(pos) ) {
+                  long previousEntry = _lookupInt.put(key, pos);
+                  if ( previousEntry != _noEntry ) {
+                     _lookupInt.put(key, previousEntry);
+                     throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
+                  }
+                  cachePayload(pos, payload);
+               }
+            }
+         }
+         catch ( EOFException argh ) {
+            if ( !mayEOF ) {
+               throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
+            }
+         }
+         catch ( IOException argh ) {
+            throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
+         }
+         finally {
+            if ( in != null ) {
+               try {
+                  in.close();
+               }
+               catch ( IOException argh ) {
+                  throw new RuntimeException("Failed to close input stream.", argh);
+               }
+            }
+         }
+      } else if ( _fieldIsLong ) {
+         DataInputStream in = null;
+         try {
+            in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
+            while ( true ) {
+               Object payload = readPayload(in);
+               if ( payload != null ) {
+                  mayEOF = false;
+               }
+               long key = in.readLong();
+               mayEOF = false;
+               long pos = in.readLong();
+               mayEOF = true;
+               if ( positionsToIgnore.get(pos) > 0 ) {
+                  positionsToIgnore.adjustValue(pos, -1);
+                  continue;
+               }
+               if ( !_dump._deletedPositions.contains(pos) ) {
+                  long previousEntry = _lookupLong.put(key, pos);
+                  if ( previousEntry != _noEntry ) {
+                     _lookupLong.put(key, previousEntry);
+                     throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
+                  }
+                  cachePayload(pos, payload);
+               }
+            }
+         }
+         catch ( EOFException argh ) {
+            if ( !mayEOF ) {
+               throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
+            }
+         }
+         catch ( IOException argh ) {
+            throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
+         }
+         finally {
+            if ( in != null ) {
+               try {
+                  in.close();
+               }
+               catch ( IOException argh ) {
+                  throw new RuntimeException("Failed to close input stream.", argh);
+               }
+            }
+         }
+      } else if ( _fieldIsString ) {
+         DataInputStream in = null;
+         try {
+            in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
+            while ( true ) {
+               Object payload = readPayload(in);
+               if ( payload != null ) {
+                  mayEOF = false;
+               }
+               String key = in.readUTF();
+               mayEOF = false;
+               long pos = in.readLong();
+               mayEOF = true;
+               if ( positionsToIgnore.get(pos) > 0 ) {
+                  positionsToIgnore.adjustValue(pos, -1);
+                  continue;
+               }
+               if ( !_dump._deletedPositions.contains(pos) ) {
+                  long previousEntry = _lookupObject.put(key, pos);
+                  if ( previousEntry != _noEntry ) {
+                     _lookupObject.put(key, previousEntry);
+                     throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
+                  }
+                  cachePayload(pos, payload);
+               }
+            }
+         }
+         catch ( EOFException argh ) {
+            if ( !mayEOF ) {
+               throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
+            }
+         }
+         catch ( IOException argh ) {
+            throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
+         }
+         finally {
+            if ( in != null ) {
+               try {
+                  in.close();
+               }
+               catch ( IOException argh ) {
+                  throw new RuntimeException("Failed to close input stream.", argh);
+               }
+            }
+         }
+      } else {
+         ObjectInput in = null;
+         try {
+            if ( _fieldIsExternalizable ) {
+               in = new SingleTypeObjectInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())), _fieldAccessor.getType());
+            } else {
+               in = new ExternalizableObjectInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
+            }
+         }
+         catch ( IOException argh ) {
+            throw new RuntimeException("Failed to initialize dump index with lookup file " + getLookupFile(), argh);
+         }
+         try {
+            while ( true ) {
+               Object payload = readPayload(in);
+               if ( payload != null ) {
+                  mayEOF = false;
+               }
+               Object key = in.readObject();
+               mayEOF = false;
+               long pos = in.readLong();
+               mayEOF = true;
+               if ( positionsToIgnore.get(pos) > 0 ) {
+                  positionsToIgnore.adjustValue(pos, -1);
+                  continue;
+               }
+               if ( !_dump._deletedPositions.contains(pos) ) {
+                  long previousEntry = _lookupObject.put(key, pos);
+                  if ( previousEntry != _noEntry ) {
+                     _lookupObject.put(key, previousEntry);
+                     throw new DuplicateKeyException("index lookup " + getLookupFile() + " is broken - contains non unique key " + key);
+                  }
+                  cachePayload(pos, payload);
+               }
+            }
+         }
+         catch ( EOFException argh ) {
+            if ( !mayEOF ) {
+               throw new RuntimeException("Failed to read lookup from " + getLookupFile() + ", file is unbalanced - unexpected EoF", argh);
+            }
+         }
+         catch ( ClassNotFoundException | IOException argh ) {
+            throw new RuntimeException("Failed to read lookup from " + getLookupFile(), argh);
+         }
+         finally {
+            try {
+               in.close();
+            }
+            catch ( IOException argh ) {
+               throw new RuntimeException("Failed to close input stream.", argh);
             }
          }
       }
