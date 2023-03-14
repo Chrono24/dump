@@ -231,11 +231,11 @@ public abstract class DumpIndex<E> implements Closeable {
    public void flush() throws IOException {
       if ( _lookupOutputStream != null ) {
          _lookupOutputStream.flush();
-         _lookupOutputStreamChannel.force(false);
+         _lookupOutputStreamChannel.force(true);
       }
       if ( _updatesOutput != null ) {
          _updatesOutput.flush();
-         _updatesOutputStreamChannel.force(false);
+         _updatesOutputStreamChannel.force(true);
       }
    }
 
@@ -504,7 +504,7 @@ public abstract class DumpIndex<E> implements Closeable {
       metaRAF.writeUTF(_dump._beanClass.getName());
       metaRAF.writeUTF(getIndexType());
       metaRAF.setLength(metaRAF.getFilePointer());
-      metaRAF.getChannel().force(false);
+      metaRAF.getChannel().force(true);
    }
 
    abstract void add( E o, long pos );

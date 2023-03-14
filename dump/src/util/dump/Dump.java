@@ -467,7 +467,7 @@ public class Dump<E> implements DumpInput<E> {
     */
    public void flush() throws IOException {
       _outputStream.flush();
-      _outputStreamChannel.force(false);
+      _outputStreamChannel.force(true);
       for ( DumpIndex<E> index : new ArrayList<>(_indexes) ) {
          index.flush();
       }
@@ -482,7 +482,7 @@ public class Dump<E> implements DumpInput<E> {
    public void flushMeta() throws IOException {
       if ( _deletionsOutput != null ) {
          _deletionsOutput.flush();
-         _deletionsOutputChannel.force(false);
+         _deletionsOutputChannel.force(true);
       }
       writeMeta();
       for ( DumpIndex<E> index : new ArrayList<>(_indexes) ) {
@@ -1066,7 +1066,7 @@ public class Dump<E> implements DumpInput<E> {
          getMetaRAF().writeUTF(e.getKey());
          getMetaRAF().writeUTF(e.getValue());
       }
-      getMetaRAF().getChannel().force(false);
+      getMetaRAF().getChannel().force(true);
    }
 
    private void appendNextItemPos( byte[] bytes, byte[] nextItemPos ) {
