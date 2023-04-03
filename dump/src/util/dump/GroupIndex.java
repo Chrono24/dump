@@ -22,6 +22,7 @@ import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.procedure.TIntObjectProcedure;
 import gnu.trove.procedure.TLongObjectProcedure;
@@ -322,8 +323,10 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
    protected void initLookupMap() {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntObjectHashMap<>();
+         ((TIntObjectHashMap)_lookupInt).setAutoCompactionFactor(0.0f);
       } else if ( _fieldIsLong ) {
          _lookupLong = new TLongObjectHashMap<>();
+         ((TLongObjectHashMap)_lookupLong).setAutoCompactionFactor(0.0f);
       } else {
          _lookupObject = new HashMap<>();
       }
@@ -410,6 +413,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
                }
             });
             _lookupInt = lookupInt;
+            ((TIntObjectHashMap)_lookupInt).setAutoCompactionFactor(0.0f);
 
          } else if ( _fieldIsLong ) {
             TLongObjectMap<Positions> dynamicLookupLong = new TLongObjectHashMap<>(10000);
@@ -465,6 +469,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
                }
             });
             _lookupLong = lookupLong;
+            ((TLongObjectHashMap)_lookupLong).setAutoCompactionFactor(0.0f);
 
          } else if ( _fieldIsString ) {
             HashMap<Object, Positions> lookupObject = new HashMap<>(10000);

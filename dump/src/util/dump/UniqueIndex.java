@@ -331,10 +331,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    protected void initLookupMap() {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntLongHashMap();
+         _lookupInt.setAutoCompactionFactor(0.0f);
       } else if ( _fieldIsLong ) {
          _lookupLong = new TLongLongHashMap();
+         _lookupLong.setAutoCompactionFactor(0.0f);
       } else {
          _lookupObject = new TObjectLongHashMap();
+         _lookupObject.setAutoCompactionFactor(0.0f);
       }
    }
 
@@ -379,6 +382,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             int size = (int)(getLookupFile().length() / (4 + 8));
             size = Math.max(10000, size + 1000);
             _lookupInt = new TIntLongHashMap(size);
+            _lookupInt.setAutoCompactionFactor(0.0f);
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -426,6 +430,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             int size = (int)(getLookupFile().length() / (8 + 8));
             size = Math.max(10000, size + 1000);
             _lookupLong = new TLongLongHashMap(size);
+            _lookupLong.setAutoCompactionFactor(0.0f);
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -473,6 +478,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             int size = (int)(getLookupFile().length() / (10 + 8)); // let's assume an average length of the String keys of 10 bytes
             size = Math.max(10000, size + 1000);
             _lookupObject = new TObjectLongHashMap(size);
+            _lookupObject.setAutoCompactionFactor(0.0f);
             DataInputStream in = null;
             try {
                in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
@@ -520,6 +526,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
             int size = (int)(getLookupFile().length() / (20 + 8)); // let's assume an average length of the keys of 20 bytes
             size = Math.max(10000, size + 1000);
             _lookupObject = new TObjectLongHashMap(size);
+            _lookupObject.setAutoCompactionFactor(0.0f);
             ObjectInput in = null;
             try {
                if ( _fieldIsExternalizable ) {
