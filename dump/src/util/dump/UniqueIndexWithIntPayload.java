@@ -108,6 +108,7 @@ public class UniqueIndexWithIntPayload<E> extends UniqueIndex<E> {
    protected void initLookupMap() {
       super.initLookupMap();
       _posToPayload = new TLongIntHashMap();
+      ((TLongIntHashMap)_posToPayload).setAutoCompactionFactor(0.0f);
    }
 
    @Override

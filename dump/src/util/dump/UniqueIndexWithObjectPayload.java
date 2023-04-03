@@ -7,6 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import util.dump.reflection.FieldAccessor;
 
@@ -118,6 +119,7 @@ public class UniqueIndexWithObjectPayload<E, P> extends UniqueIndex<E> {
    protected void initLookupMap() {
       super.initLookupMap();
       _posToPayload = new TLongObjectHashMap<>();
+      ((TLongObjectHashMap)_posToPayload).setAutoCompactionFactor(0.0f);
    }
 
    @Override

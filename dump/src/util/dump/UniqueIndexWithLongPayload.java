@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.function.ToLongFunction;
 
 import gnu.trove.map.TLongLongMap;
+import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import util.dump.reflection.FieldAccessor;
 
@@ -115,6 +116,7 @@ public class UniqueIndexWithLongPayload<E> extends UniqueIndex<E> {
    protected void initLookupMap() {
       super.initLookupMap();
       _posToPayload = new TLongLongHashMap();
+      ((TLongLongHashMap)_posToPayload).setAutoCompactionFactor(0.0f);
    }
 
    @Override
