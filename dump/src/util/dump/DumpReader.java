@@ -163,7 +163,7 @@ public class DumpReader<E> implements DumpInput<E>, Iterator<E> {
             _nextPrepared = true;
             return false;
          } else {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to read Dump: " + getSourceFile().getName(), e);
          }
       }
    }
