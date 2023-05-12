@@ -87,11 +87,11 @@ import util.dump.stream.SingleTypeObjectOutputStream;
 
 /**
  * This interface provides default implementations for <code>Externalizable</code>.<p/>
- *
+ * <p>
  * All you have to do is implement this interface with your bean (without actually providing readExternal or writeExternal)
  * and add the <code>@</code>{@link externalize} annotation for each field or getter setter pair. This annotation has a
  * parameter where you set unique, non-reusable indexes.
- *
+ * <p>
  * The (de-)serialization works even with different revisions of your bean. It is both downward and upward compatible,
  * i.e. you can add and remove fields or getter setter pairs as you like and your binary representation will
  * stay readable by both the new and the old version of your bean.<p/>
@@ -158,6 +158,7 @@ import util.dump.stream.SingleTypeObjectOutputStream;
  * methods, unless you need some transformation before or after serialization.
  * </li>
  * </ul>
+ *
  * @see externalize
  */
 @SuppressWarnings({ "unchecked", "unused" })
@@ -165,17 +166,21 @@ public interface ExternalizableBean extends Externalizable {
 
    long serialVersionUID = -1816997029156670474L;
 
-   /** Clones this instance by externalizing it to bytes and reading these bytes again.
-    *  This leads to a deep copy, but only for all fields annotated by @externalize(.). */
+   /**
+    * Clones this instance by externalizing it to bytes and reading these bytes again.
+    * This leads to a deep copy, but only for all fields annotated by @externalize(.).
+    */
    default <T extends Externalizable> T cloneDeeply() {
       byte[] bytes = SingleTypeObjectOutputStream.writeSingleInstance(this);
       ExternalizableBean clone = SingleTypeObjectInputStream.readSingleInstance(getClass(), bytes);
       return (T)clone;
    }
 
-   /** Compares this instance to another by externalizing both to bytes and comparing the bytes.
-    *  This means it does a deep equals operation, but ignores all fields/methods that are not
-    *  externalized. */
+   /**
+    * Compares this instance to another by externalizing both to bytes and comparing the bytes.
+    * This means it does a deep equals operation, but ignores all fields/methods that are not
+    * externalized.
+    */
    default <T extends Externalizable> boolean deepEquals( T other ) {
       if ( other == null ) {
          return false;
@@ -695,7 +700,7 @@ public interface ExternalizableBean extends Externalizable {
                      Enum[] values = c.getEnumConstants();
                      long l = in.readLong();
                      for ( int k = 0, length = values.length; k < length; k++ ) {
-                        if ( (l & (1 << k)) != 0 ) {
+                        if ( (l & (1L << k)) != 0 ) {
                            enumSet.add(values[k]);
                         }
                      }
@@ -1200,7 +1205,7 @@ public interface ExternalizableBean extends Externalizable {
     * By adding this annotation to a class implementing ExternalizableBean, you can make certain, that the byte[]
     * created by externalizing has a size where <code>size%sizeModulo==0</code>, i.e. it is divisible by
     * <code>sizeModulo</code>.<br>
-    *
+    * <p>
     * BEWARE: When using this annotation, the max value for @externalize index is 254, since 255 is needed for padding.
     */
    @Retention(RetentionPolicy.RUNTIME)
@@ -1234,26 +1239,32 @@ public interface ExternalizableBean extends Externalizable {
    @Target({ ElementType.FIELD, ElementType.METHOD })
    @interface externalize {
 
-      /** The default type of the first generic argument, like in <code>List&lt;GenericType0&gt;</code>.
+      /**
+       * The default type of the first generic argument, like in <code>List&lt;GenericType0&gt;</code>.
        * You should set this, if the most frequent type of this container's generic argument (the List values in the example) does not match the declared generic type.
-       * In that case setting this value improves both space requirement and performance.  */
+       * In that case setting this value improves both space requirement and performance.
+       */
       Class defaultGenericType0() default System.class; // System.class is just a placeholder for nothing, in order to make this argument optional
 
-      /** The default type of the second generic argument, like in <code>Map&lt;K, GenericType1&gt;</code>.
+      /**
+       * The default type of the second generic argument, like in <code>Map&lt;K, GenericType1&gt;</code>.
        * You should set this, if the most frequent type of this container's second generic argument (the Map values in the example) does not match the declared generic type.
-       * In that case setting this value improves both space requirement and performance.  */
+       * In that case setting this value improves both space requirement and performance.
+       */
       Class defaultGenericType1() default System.class; // System.class is just a placeholder for nothing, in order to make this argument optional
 
-      /** The default type of this field.
+      /**
+       * The default type of this field.
        * You should set this, if the most frequent type of this field's instances does not match the declared field type.
-       * In that case setting this value improves both space requirement and performance.  */
+       * In that case setting this value improves both space requirement and performance.
+       */
       Class defaultType() default System.class; // System.class is just a placeholder for nothing, in order to make this argument optional
 
       /**
        * Aka index. Must be unique. Convention is to start from 1. To guarantee compatibility between revisions of a bean,
        * you may never change the field type or any of the default*Types while reusing the same index specified with this parameter.
        * Doing so will corrupt old data dumps.<br>
-       *
+       * <p>
        * If you need values bigger than 127, simply write (byte)200, that will work out fine.
        */
       byte value();

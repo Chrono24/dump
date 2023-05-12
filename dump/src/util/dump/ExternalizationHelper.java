@@ -508,11 +508,8 @@ class ExternalizationHelper {
       boolean isNotNull = in.readBoolean();
       if ( isNotNull ) {
          s = DumpUtils.readUTF(in);
-         if ( s.equals("") ) {
-            return ""; // use interned instance
-         }
       }
-      return s;
+      return StringDeduplicator.deduplicate(s);
    }
 
    static String[] readStringArray( ObjectInput in ) throws IOException {
@@ -583,7 +580,7 @@ class ExternalizationHelper {
             written++;
          }
 
-         if (size != written) {
+         if ( size != written ) {
             throw new IllegalStateException("Collection size " + size + " does not match number of written items: " + written);
          }
       }
