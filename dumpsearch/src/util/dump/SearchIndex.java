@@ -57,14 +57,14 @@ import util.dump.reflection.Reflection;
  * <p>You need to provide a documentBuilder, which adds the Lucene index fields you want to search later.</p>
  *
  * <p><code>
- *    SearchIndex<Bean> index = new SearchIndex<>(dump, new FieldFieldAccessor(field), ( doc, bean ) -> doc.add(new TextField("data", bean._data, Store.NO)));
+ * SearchIndex<Bean> index = new SearchIndex<>(dump, new FieldFieldAccessor(field), ( doc, bean ) -> doc.add(new TextField("data", bean._data, Store.NO)));
  * </code></p>
  *
  * <p>When searching you need to prefix your query tokens with the field you want to search in. A classic {@link QueryParser} is being used by default,
  * with the internal "id" field and the AND operator as defaults.</p>
  *
  * <p><code>
- *    for(Bean bean: index.search("data:searchtoken")) doSomething(bean);
+ * for(Bean bean: index.search("data:searchtoken")) doSomething(bean);
  * </code></p>
  *
  * <p>For custom Analyzers (default is {@link StandardAnalyzer}) use the {@link IndexWriterConfig} constructor param. See CustomAnalyzerTest for an example.
@@ -147,8 +147,11 @@ public class SearchIndex<E> extends DumpIndex<E> {
       super.close();
    }
 
-   /** Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
-    * @return true if an entry exists in the dump whose id field has the value provided */
+   /**
+    * Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
+    *
+    * @return true if an entry exists in the dump whose id field has the value provided
+    */
    @Override
    public boolean contains( int id ) {
       try {
@@ -159,8 +162,11 @@ public class SearchIndex<E> extends DumpIndex<E> {
       }
    }
 
-   /** Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
-    * @return true if an entry exists in the dump whose id field has the value provided */
+   /**
+    * Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
+    *
+    * @return true if an entry exists in the dump whose id field has the value provided
+    */
    @Override
    public boolean contains( long id ) {
       try {
@@ -171,8 +177,11 @@ public class SearchIndex<E> extends DumpIndex<E> {
       }
    }
 
-   /** Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
-    * @return true if an entry exists in the dump whose id field has the value provided */
+   /**
+    * Only provided to fulfill API requirements of parent class. You'll want to use {@link #countMatches(String)} or {@link #search(String)} most probably.
+    *
+    * @return true if an entry exists in the dump whose id field has the value provided
+    */
    @Override
    public boolean contains( Object id ) {
       try {
@@ -185,6 +194,7 @@ public class SearchIndex<E> extends DumpIndex<E> {
 
    /**
     * Counts the number of matches in the dump for the given Lucene query. This is way faster than searching and counting the results.
+    *
     * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
     */
    public int countMatches( String query ) throws ParseException, IOException {
@@ -242,6 +252,7 @@ public class SearchIndex<E> extends DumpIndex<E> {
     * Searches for entries in the dump using the given Lucene query, loading all matching items lazily from the dump during iteration.
     * Due to this lazy iteration the elements returned by this iterator might be null, if they have been meanwhile deleted. If you need
     * non-null results, use {@link #searchBlocking(String, int, Sort)}.
+    *
     * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
     */
    public Iterable<E> search( String query ) throws ParseException, IOException {
@@ -252,8 +263,9 @@ public class SearchIndex<E> extends DumpIndex<E> {
     * Searches for entries in the dump using the given Lucene query, loading all matching items lazily from the dump during iteration.
     * Due to this lazy iteration the elements returned by this iterator might be null, if they have been meanwhile deleted. If you need
     * non-null results, use {@link #searchBlocking(String, int, Sort)}.
+    *
     * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
-    * @param sort an sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
+    * @param sort  an sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
     */
    public Iterable<E> search( String query, Sort sort ) throws ParseException, IOException {
       return search(query, getNumKeys(), sort);
@@ -263,7 +275,8 @@ public class SearchIndex<E> extends DumpIndex<E> {
     * Searches for entries in the dump using the given Lucene query, loading all matching items lazily from the dump during iteration.
     * Due to this lazy iteration the elements returned by this iterator might be null, if they have been meanwhile deleted. If you need
     * non-null results, use {@link #searchBlocking(String, int, Sort)}.
-    * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
+    *
+    * @param query   a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
     * @param maxHits the maximum number of results to return
     */
    public Iterable<E> search( String query, int maxHits ) throws ParseException, IOException {
@@ -274,9 +287,10 @@ public class SearchIndex<E> extends DumpIndex<E> {
     * Searches for entries in the dump using the given Lucene query, loading all matching items lazily from the dump during iteration.
     * Due to this lazy iteration the elements returned by this iterator might be null, if they have been meanwhile deleted. If you need
     * non-null results, use {@link #searchBlocking(String, int, Sort)}.
-    * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
+    *
+    * @param query   a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
     * @param maxHits the maximum number of results to return
-    * @param sort an optional sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
+    * @param sort    an optional sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
     */
    @SuppressWarnings("unchecked") // missing <> in "new Iterator()..." is a workaround for compiler bug in JDK 11.0.2
    public Iterable<E> search( String query, int maxHits, @Nullable Sort sort ) throws ParseException, IOException {
@@ -317,9 +331,10 @@ public class SearchIndex<E> extends DumpIndex<E> {
 
    /**
     * Searches for entries in the dump using the given Lucene query, loading all matching items eagerly from the dump.
-    * @param query a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
+    *
+    * @param query   a valid Lucene Query, which will be parsed using the provided Analyzer or StandardAnalyzer, if none provided.
     * @param maxHits the maximum number of results to return
-    * @param sort an optional sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
+    * @param sort    an optional sorting order of the results, a SortBuilder might be obtained using {@link #sort()}
     */
    public List<E> searchBlocking( String query, int maxHits, @Nullable Sort sort ) throws ParseException, IOException {
       synchronized ( _dump ) {
@@ -461,7 +476,9 @@ public class SearchIndex<E> extends DumpIndex<E> {
       return (_fieldIsInt ? getIntKey(o) : (_fieldIsLong ? getLongKey(o) : getObjectKey(o))).toString();
    }
 
-   /** We are optimistic with regard to concurrent modifications to the index. When it fails, we simply retry the underlying search. */
+   /**
+    * We are optimistic with regard to concurrent modifications to the index. When it fails, we simply retry the underlying search.
+    */
    private <T> T retryOnAlreadyClosed( ThrowingSupplier<T> s ) throws ParseException, IOException {
       AlreadyClosedException e = null;
       int n = 3;
@@ -525,7 +542,8 @@ public class SearchIndex<E> extends DumpIndex<E> {
       private String[]                _longFieldNames;
       private String[]                _doubleFieldNames;
       private String[]                _multiValuedFacetFields;
-      private int                     _version = 0;
+      private int                     _version         = 0;
+      private int                     _ramBufferSizeMB = 64; // Lucene defaults to 16
 
       public SearchIndexBuilder( Dump<E> dump, FieldAccessor idFieldAccessor, BiConsumer<Document, E> documentBuilder ) {
          _dump = dump;
@@ -554,6 +572,7 @@ public class SearchIndex<E> extends DumpIndex<E> {
 
          if ( _indexWriterConfig == null ) {
             _indexWriterConfig = new IndexWriterConfig(_analyzer);
+            _indexWriterConfig.setRAMBufferSizeMB(_ramBufferSizeMB);
          }
 
          return new SearchIndex(_dump, _idFieldAccessor, _documentBuilder, _indexWriterConfig, _queryParser, _facetsConfig, _version);
@@ -591,6 +610,11 @@ public class SearchIndex<E> extends DumpIndex<E> {
 
       public SearchIndexBuilder<E> withQueryParser( QueryParser queryParser ) {
          _queryParser = queryParser;
+         return this;
+      }
+
+      public SearchIndexBuilder<E> withRamBufferSizeMB( int ramBufferSizeMB ) {
+         _ramBufferSizeMB = ramBufferSizeMB;
          return this;
       }
 
