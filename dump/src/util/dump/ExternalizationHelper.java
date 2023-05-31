@@ -45,8 +45,11 @@ import util.dump.stream.ExternalizableObjectOutputStream;
 @SuppressWarnings({ "unchecked", "ForLoopReplaceableByForEach", "WeakerAccess", "rawtypes" })
 class ExternalizationHelper {
 
-   private static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of(Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class,
-         Float.class, Double.class, String.class, Enum.class);
+   private static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of( //
+         Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class, Float.class, Double.class, // 
+         String.class, Enum.class, //
+         boolean[].class, byte[].class, char[].class, short[].class, int[].class, long[].class, float[].class, double[].class //
+   );
 
    static boolean USE_UNSAFE_FIELD_ACCESSORS = true;
 
@@ -138,6 +141,18 @@ class ExternalizationHelper {
          d = new byte[in.readInt()];
          for ( int k = 0, length = d.length; k < length; k++ ) {
             d[k] = in.readByte();
+         }
+      }
+      return d;
+   }
+
+   static boolean[] readBooleanArray( DataInput in ) throws IOException {
+      boolean[] d = null;
+      boolean isNotNull = in.readBoolean();
+      if ( isNotNull ) {
+         d = new boolean[in.readInt()];
+         for ( int k = 0, length = d.length; k < length; k++ ) {
+            d[k] = in.readBoolean();
          }
       }
       return d;
@@ -383,6 +398,18 @@ class ExternalizationHelper {
       return d;
    }
 
+   static short[] readShortArray( DataInput in ) throws IOException {
+      short[] d = null;
+      boolean isNotNull = in.readBoolean();
+      if ( isNotNull ) {
+         d = new short[in.readInt()];
+         for ( int k = 0, length = d.length; k < length; k++ ) {
+            d[k] = in.readShort();
+         }
+      }
+      return d;
+   }
+
    static Integer readInteger( ObjectInput in ) throws IOException {
       Integer i = null;
       boolean isNotNull = in.readBoolean();
@@ -548,6 +575,16 @@ class ExternalizationHelper {
          out.writeByte(s);
       }
    }
+   
+   static void writeBooleanArray( boolean[] d, ObjectOutput out ) throws IOException {
+      out.writeBoolean(d != null);
+      if ( d != null ) {
+         out.writeInt(d.length);
+         for ( int j = 0, llength = d.length; j < llength; j++ ) {
+            out.writeBoolean(d[j]);
+         }
+      }
+   }
 
    static void writeByteArray( byte[] d, ObjectOutput out ) throws IOException {
       out.writeBoolean(d != null);
@@ -699,6 +736,16 @@ class ExternalizationHelper {
       }
    }
 
+   static void writeShortArray( short[] d, ObjectOutput out ) throws IOException {
+      out.writeBoolean(d != null);
+      if ( d != null ) {
+         out.writeInt(d.length);
+         for ( int j = 0, llength = d.length; j < llength; j++ ) {
+            out.writeShort(d[j]);
+         }
+      }
+   }
+
    static void writeInteger( ObjectOutput out, Integer s ) throws IOException {
       out.writeBoolean(s != null);
       if ( s != null ) {
@@ -813,6 +860,20 @@ class ExternalizationHelper {
          return () -> readFloat(in);
       } else if ( Double.class == genericType ) {
          return () -> readDouble(in);
+      } else if ( boolean[].class == genericType ) {
+         return () -> readBooleanArray(in);
+      } else if ( byte[].class == genericType ) {
+         return () -> readByteArray( in);
+      } else if ( short[].class == genericType ) {
+         return () -> readShortArray( in);
+      } else if ( int[].class == genericType ) {
+         return () -> readIntArray( in);
+      } else if ( long[].class == genericType ) {
+         return () -> readLongArray( in);
+      } else if ( float[].class == genericType ) {
+         return () -> readFloatArray( in);
+      } else if ( double[].class == genericType ) {
+         return () -> readDoubleArray( in);
       } else {
          throw new IllegalArgumentException("Generic reader does not yet support " + genericType.getName() + "!");
       }
@@ -841,6 +902,20 @@ class ExternalizationHelper {
          return instance -> writeFloat(out, (Float)instance);
       } else if ( Double.class == genericType ) {
          return instance -> writeDouble(out, (Double)instance);
+      } else if ( boolean[].class == genericType ) {
+         return instance -> writeBooleanArray((boolean[])instance, out);
+      } else if ( byte[].class == genericType ) {
+         return instance -> writeByteArray((byte[])instance, out);
+      } else if ( short[].class == genericType ) {
+         return instance -> writeShortArray((short[])instance, out);
+      } else if ( int[].class == genericType ) {
+         return instance -> writeIntArray((int[])instance, out);
+      } else if ( long[].class == genericType ) {
+         return instance -> writeLongArray((long[])instance, out);
+      } else if ( float[].class == genericType ) {
+         return instance -> writeFloatArray((float[])instance, out);
+      } else if ( double[].class == genericType ) {
+         return instance -> writeDoubleArray((double[])instance, out);
       } else {
          throw new IllegalArgumentException("Generic writer does not yet support " + genericType.getName() + "!");
       }
