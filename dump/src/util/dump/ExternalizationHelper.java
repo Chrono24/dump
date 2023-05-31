@@ -1191,7 +1191,7 @@ class ExternalizationHelper {
             ft = FieldType.Object;
             LoggerFactory.getLogger(_class).warn("The field type of index " + fi._fieldIndex + //
                   " is not of a supported type, thus falling back to Object serialization." + //
-                  " This might be very slow of even fail, dependant on your ObjectStreamProvider." + //
+                  " This might be very slow or even fail, dependant on your ObjectStreamProvider." + //
                   " Please check, whether this is really what you wanted!");
          }
          if ( (ft == FieldType.List || ft == FieldType.Set) //
@@ -1204,7 +1204,7 @@ class ExternalizationHelper {
                ft = FieldType.Object;
                LoggerFactory.getLogger(_class).warn("The field type of index " + fi._fieldIndex + //
                      " has a Collection with an unsupported type as generic parameter, thus falling back to Object serialization." + //
-                     " This might be very slow of even fail, dependant on your ObjectStreamProvider." + //
+                     " This might be very slow or even fail, dependant on your ObjectStreamProvider." + //
                      " Please check, whether this is really what you wanted!");
             }
          }
