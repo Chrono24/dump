@@ -9,6 +9,8 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.AccessControlException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -112,6 +114,35 @@ public class DumpTest {
          assertThat(dump.getDumpSize()).as("unexpected dump size after update").isEqualTo(2000);
          assertThat(dump.get(0)._data[0]).as("unexpected data after update").isEqualTo((byte)3);
          assertThat(dump.get(1000)._data[0]).as("unexpected data after update").isEqualTo((byte)2);
+      }
+   }
+
+   @Test
+   public void testIterateDumpDeletion() throws Exception {
+      File dumpFile = new File("DumpTest.dmp");
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile)) {
+         dump.add(new Bean(1));
+         dump.add(new Bean(2));
+         dump.add(new Bean(3));
+
+         for ( Bean bean : dump ) {
+            if ( bean._id == 2 ) {
+               dump.deleteLast();
+            }
+         }
+
+         Set<Integer> beans = new HashSet<>();
+         DumpIterator<Bean> iterator = dump.iterator();
+         while ( iterator.hasNext() ) {
+            // Ensure hasNext is idempotent
+            //noinspection ConstantValue
+            assertThat(iterator.hasNext()).isTrue();
+
+            Bean bean = iterator.next();
+            beans.add(bean._id);
+         }
+
+         assertThat(beans).containsExactly(1, 3);
       }
    }
 
