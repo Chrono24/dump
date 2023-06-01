@@ -1697,6 +1697,9 @@ public class Dump<E> implements DumpInput<E> {
 
       @Override
       public boolean hasNext() {
+         if ( _nextPrepared ) {
+            return true;  // take shortcut, be idempotent
+         }
          synchronized ( Dump.this ) {
             long pos;
             boolean hasNext;
