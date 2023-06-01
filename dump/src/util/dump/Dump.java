@@ -1698,6 +1698,10 @@ public class Dump<E> implements DumpInput<E> {
       @Override
       public boolean hasNext() {
          synchronized ( Dump.this ) {
+            if ( _nextPrepared ) {
+               return _nextObject != null;
+            }
+
             long pos;
             boolean hasNext;
             do {
