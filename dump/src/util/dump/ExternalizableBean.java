@@ -166,6 +166,19 @@ public interface ExternalizableBean extends Externalizable {
 
    long serialVersionUID = -1816997029156670474L;
 
+   static void skipFully( ObjectInput in, int len ) throws IOException {
+      if ( len > 0 ) {
+         final byte[] buf = new byte[Math.min(len, 4000)]; // limit to slightly below page size
+         int remaining = len, skip;
+         do {
+            skip = Math.min(remaining, buf.length);
+            in.readFully(buf, 0, skip);
+            remaining -= skip;
+         }
+         while ( remaining > 0 );
+      }
+   }
+
    /**
     * Clones this instance by externalizing it to bytes and reading these bytes again.
     * This leads to a deep copy, but only for all fields annotated by @externalize(.).
@@ -253,9 +266,9 @@ public interface ExternalizableBean extends Externalizable {
             Objects.requireNonNull(ft, "Invalid field type " + (fieldTypeId & 0xff) + " for field index " + fieldIndex);
 
             if ( ft.isLengthDynamic() ) {
-               int size = in.readInt();
-               if ( f == null ) {
-                  in.skipBytes(size);
+               int len = in.readInt();
+               if ( f == null ) { // unknown field, skip it
+                  skipFully(in, len);
                   continue;
                }
             }
@@ -765,8 +778,8 @@ public interface ExternalizableBean extends Externalizable {
                break;
             }
             case Padding: {
-               int bytesToRead = in.readShort();
-               in.read(new byte[bytesToRead]);
+               int len = in.readShort();
+               skipFully(in, len);
                break;
             }
             default: {
