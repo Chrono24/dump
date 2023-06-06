@@ -4,7 +4,7 @@
    <groupId>mkr</groupId>
    <artifactId>dump-pom</artifactId>
    <name>mkr dump pom</name>
-   <version>1.20230602.1</version>
+   <version>1.20230607.1</version>
    <packaging>pom</packaging>
 
    <modules>
