@@ -5,13 +5,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import gnu.trove.map.TIntIntMap;
-import gnu.trove.map.hash.TIntIntHashMap;
 
 
 public class DumpUtils {
@@ -50,84 +46,6 @@ public class DumpUtils {
          catch ( IOException ex ) {
             throw new RuntimeException(ex);
          }
-      }
-   }
-
-   /**
-    * Copies non deleted elements from source to target. Tries to ignore and skip all corrupt elements.<p/>
-    * <b>Beware:</b> Repairing corrupt elements only works if the element size in bytes is stable and not too many elements were deleted from the dump.
-    * Also some retained elements might contain broken data afterwards, if the binary representation of the element is still externalizable. I.e. there
-    * is no checksum mechanism in the dump (yet).
-    * @throws RuntimeException if the cleanup fails
-    */
-   public static <E> void cleanup( final Dump<E> source, final Dump<E> destination ) {
-      try {
-         source.flush();
-         Iterator<E> iterator = source.new DeletionAwareDumpReader(source._dumpFile, source._streamProvider) {
-
-            TIntIntMap _elementSizes = new TIntIntHashMap();
-
-            @Override
-            public boolean hasNext() {
-               while ( true ) {
-                  try {
-                     long oldLastPos = _lastPos;
-                     boolean hasNext = super.hasNext();
-                     int size = (int)(_lastPos - oldLastPos);
-                     _elementSizes.put(size, _elementSizes.get(size) + 1);
-                     return hasNext;
-                  }
-                  catch ( Throwable e ) {
-                     if ( e instanceof OutOfMemoryError || e.getMessage().contains("Failed to read externalized instance") ) {
-                        // let's guess the next pos which is hopefully not also corrupt
-                        long bytesRead = _positionAwareInputStream._rafPos - _lastPos;
-                        long mostFrequentElementSize = getMostFrequentElementSize();
-                        int bytesToSkip = (int)(mostFrequentElementSize - (bytesRead % mostFrequentElementSize));
-                        try {
-                           for ( int i = 0; i < bytesToSkip; i++ ) {
-                              if ( _positionAwareInputStream.read() < 0 ) {
-                                 return false;
-                              }
-                           }
-                        }
-                        catch ( IOException ee ) {
-                           throw new RuntimeException("Failed to cleanup dump " + source.getDumpFile(), ee);
-                        }
-                        _lastPos += bytesRead + bytesToSkip;
-                     } else {
-                        throw new RuntimeException("Failed to cleanup dump " + source.getDumpFile(), e);
-                     }
-                  }
-               }
-            }
-
-            @Override
-            void closeStreams( boolean isEOF ) {
-               // don't
-            }
-
-            private long getMostFrequentElementSize() {
-               final int[] maxNumber = { 0 };
-               final int[] mostFrequentSize = { 1 };
-               _elementSizes.forEachEntry(( size, number ) -> {
-                  if ( number > maxNumber[0] ) {
-                     mostFrequentSize[0] = size;
-                     maxNumber[0] = number;
-                  }
-                  return true;
-               });
-               return Math.max(1, mostFrequentSize[0]);
-            }
-
-         }.iterator();
-
-         for ( ; iterator.hasNext(); ) {
-            E e = iterator.next();
-            destination.add(e);
-         }
-      }
-      catch ( IOException e ) {
-         throw new RuntimeException("Failed to cleanup dump " + source.getDumpFile(), e);
       }
    }
 
@@ -353,7 +271,7 @@ public class DumpUtils {
       return null;
    }
 
-   /** this is an extension of {@link java.io.DataOutputStream.writeUTF()} which allows more than 65535 chars. 
+   /** this is an extension of {@link java.io.DataOutputStream.writeUTF()} which allows more than 65535 chars.
     * Use with readUtf() from this class. */
    public static int writeUTF( String str, DataOutput out ) throws IOException {
       int strlen = str.length();
