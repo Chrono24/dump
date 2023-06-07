@@ -35,7 +35,6 @@ public class DumpReader<E> implements DumpInput<E>, Iterator<E> {
    File                _sourceFile      = null;
    boolean             _deleteFileOnEOF = false;
 
-
    /**
     *
     * Convenience constructor allowing you to specify a File Object as source for
@@ -163,7 +162,8 @@ public class DumpReader<E> implements DumpInput<E>, Iterator<E> {
             _nextPrepared = true;
             return false;
          } else {
-            throw new RuntimeException("Failed to read Dump: " + getSourceFile().getName(), e);
+            File sourceFile = getSourceFile();
+            throw new RuntimeException("Failed to read dump: " + (sourceFile == null ? "unknown" : sourceFile.getAbsolutePath()), e);
          }
       }
    }
