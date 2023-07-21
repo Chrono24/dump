@@ -22,6 +22,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -222,7 +223,7 @@ class ExternalizationHelper {
             containerType = ContainerType.UnmodifiableList;
             break;
          case "java.util.Collections$UnmodifiableSet":
-            d = new HashSet<>(size, 1.0f);
+            d = new LinkedHashSet<>(size, 1.0f);
             containerType = ContainerType.UnmodifiableSet;
             break;
          case "java.util.Arrays$ArrayList":
@@ -247,7 +248,7 @@ class ExternalizationHelper {
                return Set.of(instanceReader.get(), instanceReader.get());
             }
          case "java.util.ImmutableCollections$SetN":
-            d = new HashSet<>(size, 1.0f);
+            d = new LinkedHashSet<>(size, 1.0f);
             containerType = ContainerType.ImmutableSet;
             break;
          default:
