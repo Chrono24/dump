@@ -654,6 +654,7 @@ public interface ExternalizableBean extends Externalizable {
                }
                break;
             }
+            case Collection:
             case List:
             case Set: {
                readCollection(in, f, defaultType, config._defaultGenericTypes0[j], this, config);
@@ -1129,6 +1130,7 @@ public interface ExternalizableBean extends Externalizable {
                }
                break;
             }
+            case Collection:
             case List:
             case Set: {
                writeCollection(out, f, defaultType, _config._defaultGenericTypes0[i], this);
