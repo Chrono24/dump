@@ -212,6 +212,10 @@ class ExternalizationHelper {
          case "java.util.Collections$EmptySet":
             d = Collections.emptySet();
             break;
+         case "java.util.Collections$UnmodifiableCollection":
+            d = new ArrayList<>(size);
+            containerType = ContainerType.UnmodifiableCollection;
+            break;
          case "java.util.Collections$UnmodifiableRandomAccessList":
          case "java.util.Collections$UnmodifiableList":
             d = new ArrayList<>(size);
@@ -259,8 +263,11 @@ class ExternalizationHelper {
 
       return switch ( containerType ) {
          default -> d;
+         case UnmodifiableCollection -> Collections.unmodifiableCollection(d);
+
          case UnmodifiableList -> Collections.unmodifiableList((List)d);
          case UnmodifiableSet -> Collections.unmodifiableSet((Set)d);
+
          case ImmutableList -> List.copyOf(d);
          case ImmutableSet -> Set.copyOf(d);
       };
@@ -575,7 +582,7 @@ class ExternalizationHelper {
          out.writeByte(s);
       }
    }
-   
+
    static void writeBooleanArray( boolean[] d, ObjectOutput out ) throws IOException {
       out.writeBoolean(d != null);
       if ( d != null ) {
@@ -863,17 +870,17 @@ class ExternalizationHelper {
       } else if ( boolean[].class == genericType ) {
          return () -> readBooleanArray(in);
       } else if ( byte[].class == genericType ) {
-         return () -> readByteArray( in);
+         return () -> readByteArray(in);
       } else if ( short[].class == genericType ) {
-         return () -> readShortArray( in);
+         return () -> readShortArray(in);
       } else if ( int[].class == genericType ) {
-         return () -> readIntArray( in);
+         return () -> readIntArray(in);
       } else if ( long[].class == genericType ) {
-         return () -> readLongArray( in);
+         return () -> readLongArray(in);
       } else if ( float[].class == genericType ) {
-         return () -> readFloatArray( in);
+         return () -> readFloatArray(in);
       } else if ( double[].class == genericType ) {
-         return () -> readDoubleArray( in);
+         return () -> readDoubleArray(in);
       } else {
          throw new IllegalArgumentException("Generic reader does not yet support " + genericType.getName() + "!");
       }
@@ -990,6 +997,7 @@ class ExternalizationHelper {
       LocalTime(java.time.LocalTime.class, 51), //
       // TODO add Map (beware of Collections.*Map or Treemaps using custom Comparators!)
       Map(java.util.Map.class, 52, true), //
+      Collection(java.util.Collection.class, 53, true), //
       ;
 
       private static final Map<Class, FieldType> _classLookup = new HashMap<>(FieldType.values().length);
@@ -1040,10 +1048,13 @@ class ExternalizationHelper {
 
    private enum ContainerType {
       DefaultMutable,
+
       ImmutableList,
       ImmutableSet,
+
       UnmodifiableList,
       UnmodifiableSet,
+      UnmodifiableCollection,
    }
 
 
@@ -1269,10 +1280,14 @@ class ExternalizationHelper {
                   " This might be very slow or even fail, dependant on your ObjectStreamProvider." + //
                   " Please check, whether this is really what you wanted!");
          }
-         if ( (ft == FieldType.List || ft == FieldType.Set) //
+         if ( (ft == FieldType.List || ft == FieldType.Set || ft == FieldType.Collection) //
                && (fi._fieldAccessor.getGenericTypes().length != 1 || !Externalizable.class.isAssignableFrom(fi._fieldAccessor.getGenericTypes()[0])) ) {
             if ( fi._fieldAccessor.getGenericTypes().length == 1 && String.class == fi._fieldAccessor.getGenericTypes()[0] ) {
-               ft = (ft == FieldType.List) ? FieldType.ListOfStrings : FieldType.SetOfStrings;
+               ft = switch ( ft ) { // legacy overrides from generic List / Set to String-only containers
+                  case List -> FieldType.ListOfStrings;
+                  case Set -> FieldType.SetOfStrings;
+                  default -> ft;
+               };
             } else if ( fi._fieldAccessor.getGenericTypes().length == 1 && IMPLEMENTED_GENERICS.contains(fi._fieldAccessor.getGenericTypes()[0]) ) {
                // leave field type unchanged
             } else {
@@ -1454,6 +1469,8 @@ class ExternalizationHelper {
             _defaultType = HashSet.class;
          } else if ( ft == FieldType.Map ) {
             _defaultType = HashMap.class;
+         } else if ( ft == FieldType.Collection ) {
+            _defaultType = ArrayList.class;
          }
 
          if ( annotation.defaultType() != System.class ) {
@@ -1490,7 +1507,7 @@ class ExternalizationHelper {
             }
          }
 
-         if ( ft == FieldType.List || ft == FieldType.ListOfStrings || ft == FieldType.Set || ft == FieldType.SetOfStrings || ft == FieldType.Map ) {
+         if ( ft == FieldType.List || ft == FieldType.ListOfStrings || ft == FieldType.Set || ft == FieldType.SetOfStrings || ft == FieldType.Map || ft == FieldType.Collection ) {
             _defaultGenericType0 = fieldAccessor.getGenericTypes()[0];
             if ( annotation.defaultGenericType0() != System.class ) {
                _defaultGenericType0 = annotation.defaultGenericType0();
