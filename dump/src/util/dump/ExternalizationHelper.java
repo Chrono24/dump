@@ -251,6 +251,10 @@ class ExternalizationHelper {
             d = new LinkedHashSet<>(size, 1.0f);
             containerType = ContainerType.ImmutableSet;
             break;
+         case "java.util.concurrent.ConcurrentHashMap$KeySetView":
+            // be silently compatible, retain order of elements
+            d = new LinkedHashSet<>(size, 1.0f);
+            break;
          default:
             Class c = forName(className, config);
             d = instantiateCollection(c);
