@@ -255,6 +255,10 @@ class ExternalizationHelper {
             // be silently compatible, retain order of elements
             d = new LinkedHashSet<>(size, 1.0f);
             break;
+         case "java.util.concurrent.ConcurrentHashMap$ValuesView":
+            // be silently compatible, retain order of elements
+            d = new ArrayList<>(size);
+            break;
          default:
             Class c = forName(className, config);
             d = instantiateCollection(c);
