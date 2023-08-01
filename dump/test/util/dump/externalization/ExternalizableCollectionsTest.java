@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +31,18 @@ public class ExternalizableCollectionsTest {
    @Test
    public void testArrayList() {
       testBeanIsExternalizable(new CollectionContainer(new ArrayList<>(List.of("a", "b", "c"))));
+   }
+
+   @Test
+   public void testConcurrentHashMapKeySetView() {
+      Map<String, String> map = new ConcurrentHashMap<>(Map.of("a", "a", "b", "b", "c", "c"));
+      testBeanIsExternalizable(new CollectionContainer(map.keySet()));
+   }
+
+   @Test
+   public void testConcurrentHashMapValuesView() {
+      Map<String, String> map = new ConcurrentHashMap<>(Map.of("a", "a", "b", "b", "c", "c"));
+      testBeanIsExternalizable(new CollectionContainer(map.values()));
    }
 
    @Test
