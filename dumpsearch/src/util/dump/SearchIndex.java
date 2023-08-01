@@ -430,11 +430,8 @@ public class SearchIndex<E> extends DumpIndex<E> {
    @Override
    void add( E o, long pos ) {
       try {
-         Document doc = new Document();
-         doc.add(new StringField("id", getId(o), Field.Store.YES));
-         doc.add(new StringField("pos", "" + pos, Field.Store.YES));
-         _documentBuilder.accept(doc, o);
-         _writer.addDocument(_facetsConfig.build(_taxoWriter, doc));
+         Document doc = createDocument(pos, o);
+         _writer.addDocument(doc);
          _commitIsPending.set(true);
       }
       catch ( IOException e ) {
@@ -460,16 +457,21 @@ public class SearchIndex<E> extends DumpIndex<E> {
    @Override
    void update( long pos, E oldItem, E newItem ) {
       try {
-         Document doc = new Document();
-         doc.add(new StringField("id", getId(newItem), Field.Store.YES));
-         doc.add(new StringField("pos", "" + pos, Field.Store.YES));
-         _documentBuilder.accept(doc, newItem);
-         _writer.updateDocument(new Term("pos", "" + pos), _facetsConfig.build(_taxoWriter, doc));
+         Document doc = createDocument(pos, newItem);
+         _writer.updateDocument(new Term("pos", "" + pos), doc);
          _commitIsPending.set(true);
       }
       catch ( IOException e ) {
          throw new RuntimeException("Failed to update index", e);
       }
+   }
+
+   private Document createDocument( long pos, E newItem ) throws IOException {
+      Document doc = new Document();
+      doc.add(new StringField("id", getId(newItem), Field.Store.YES));
+      doc.add(new StringField("pos", "" + pos, Field.Store.YES));
+      _documentBuilder.accept(doc, newItem);
+      return _facetsConfig.build(_taxoWriter, doc);
    }
 
    private String getId( E o ) {
