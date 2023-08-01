@@ -442,7 +442,7 @@ public class SearchIndex<E> extends DumpIndex<E> {
    @Override
    void delete( E o, long pos ) {
       try {
-         _writer.deleteDocuments(parse("id:" + getId(o) + " pos:" + pos));
+         _writer.deleteDocuments(parse("pos:" + pos));
          _commitIsPending.set(true);
       }
       catch ( IOException | ParseException e ) {
