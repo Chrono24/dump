@@ -47,7 +47,7 @@ import util.dump.stream.ExternalizableObjectOutputStream;
 class ExternalizationHelper {
 
    private static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of( //
-         Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class, Float.class, Double.class, // 
+         Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class, Float.class, Double.class, //
          String.class, Enum.class, //
          boolean[].class, byte[].class, char[].class, short[].class, int[].class, long[].class, float[].class, double[].class //
    );
@@ -126,6 +126,18 @@ class ExternalizationHelper {
       return s;
    }
 
+   static boolean[] readBooleanArray( DataInput in ) throws IOException {
+      boolean[] d = null;
+      boolean isNotNull = in.readBoolean();
+      if ( isNotNull ) {
+         d = new boolean[in.readInt()];
+         for ( int k = 0, length = d.length; k < length; k++ ) {
+            d[k] = in.readBoolean();
+         }
+      }
+      return d;
+   }
+
    static Byte readByte( ObjectInput in ) throws IOException {
       Byte s = null;
       boolean isNotNull = in.readBoolean();
@@ -142,18 +154,6 @@ class ExternalizationHelper {
          d = new byte[in.readInt()];
          for ( int k = 0, length = d.length; k < length; k++ ) {
             d[k] = in.readByte();
-         }
-      }
-      return d;
-   }
-
-   static boolean[] readBooleanArray( DataInput in ) throws IOException {
-      boolean[] d = null;
-      boolean isNotNull = in.readBoolean();
-      if ( isNotNull ) {
-         d = new boolean[in.readInt()];
-         for ( int k = 0, length = d.length; k < length; k++ ) {
-            d[k] = in.readBoolean();
          }
       }
       return d;
@@ -414,18 +414,6 @@ class ExternalizationHelper {
       return d;
    }
 
-   static short[] readShortArray( DataInput in ) throws IOException {
-      short[] d = null;
-      boolean isNotNull = in.readBoolean();
-      if ( isNotNull ) {
-         d = new short[in.readInt()];
-         for ( int k = 0, length = d.length; k < length; k++ ) {
-            d[k] = in.readShort();
-         }
-      }
-      return d;
-   }
-
    static Integer readInteger( ObjectInput in ) throws IOException {
       Integer i = null;
       boolean isNotNull = in.readBoolean();
@@ -546,6 +534,18 @@ class ExternalizationHelper {
       return s;
    }
 
+   static short[] readShortArray( DataInput in ) throws IOException {
+      short[] d = null;
+      boolean isNotNull = in.readBoolean();
+      if ( isNotNull ) {
+         d = new short[in.readInt()];
+         for ( int k = 0, length = d.length; k < length; k++ ) {
+            d[k] = in.readShort();
+         }
+      }
+      return d;
+   }
+
    static String readString( ObjectInput in ) throws IOException {
       String s = null;
       boolean isNotNull = in.readBoolean();
@@ -585,13 +585,6 @@ class ExternalizationHelper {
       }
    }
 
-   static void writeByte( ObjectOutput out, Byte s ) throws IOException {
-      out.writeBoolean(s != null);
-      if ( s != null ) {
-         out.writeByte(s);
-      }
-   }
-
    static void writeBooleanArray( boolean[] d, ObjectOutput out ) throws IOException {
       out.writeBoolean(d != null);
       if ( d != null ) {
@@ -599,6 +592,13 @@ class ExternalizationHelper {
          for ( int j = 0, llength = d.length; j < llength; j++ ) {
             out.writeBoolean(d[j]);
          }
+      }
+   }
+
+   static void writeByte( ObjectOutput out, Byte s ) throws IOException {
+      out.writeBoolean(s != null);
+      if ( s != null ) {
+         out.writeByte(s);
       }
    }
 
@@ -752,16 +752,6 @@ class ExternalizationHelper {
       }
    }
 
-   static void writeShortArray( short[] d, ObjectOutput out ) throws IOException {
-      out.writeBoolean(d != null);
-      if ( d != null ) {
-         out.writeInt(d.length);
-         for ( int j = 0, llength = d.length; j < llength; j++ ) {
-            out.writeShort(d[j]);
-         }
-      }
-   }
-
    static void writeInteger( ObjectOutput out, Integer s ) throws IOException {
       out.writeBoolean(s != null);
       if ( s != null ) {
@@ -824,6 +814,16 @@ class ExternalizationHelper {
       out.writeBoolean(s != null);
       if ( s != null ) {
          out.writeShort(s);
+      }
+   }
+
+   static void writeShortArray( short[] d, ObjectOutput out ) throws IOException {
+      out.writeBoolean(d != null);
+      if ( d != null ) {
+         out.writeInt(d.length);
+         for ( int j = 0, llength = d.length; j < llength; j++ ) {
+            out.writeShort(d[j]);
+         }
       }
    }
 
@@ -1516,7 +1516,8 @@ class ExternalizationHelper {
             }
          }
 
-         if ( ft == FieldType.List || ft == FieldType.ListOfStrings || ft == FieldType.Set || ft == FieldType.SetOfStrings || ft == FieldType.Map || ft == FieldType.Collection ) {
+         if ( ft == FieldType.List || ft == FieldType.ListOfStrings || ft == FieldType.Set || ft == FieldType.SetOfStrings || ft == FieldType.Map
+               || ft == FieldType.Collection ) {
             _defaultGenericType0 = fieldAccessor.getGenericTypes()[0];
             if ( annotation.defaultGenericType0() != System.class ) {
                _defaultGenericType0 = annotation.defaultGenericType0();
