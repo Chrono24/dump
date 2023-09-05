@@ -223,6 +223,7 @@ class ExternalizationHelper {
             containerType = ContainerType.UnmodifiableList;
             break;
          case "java.util.Collections$UnmodifiableSet":
+         case "java.util.Collections$UnmodifiableSortedSet":
             d = new LinkedHashSet<>(size, 1.0f);
             containerType = ContainerType.UnmodifiableSet;
             break;
