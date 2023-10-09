@@ -466,6 +466,11 @@ public class Dump<E> implements DumpInput<E> {
     * call {@link #flushMeta()} too. Indexes are also flushed.
     */
    public void flush() throws IOException {
+      if ( _deletionsOutput != null ) {
+         _deletionsOutput.flush();
+         _deletionsOutputChannel.force(false);
+      }
+
       _outputStream.flush();
       _outputStreamChannel.force(false);
       for ( DumpIndex<E> index : new ArrayList<>(_indexes) ) {
@@ -480,10 +485,6 @@ public class Dump<E> implements DumpInput<E> {
     * Indes metas are also flushed.
     */
    public void flushMeta() throws IOException {
-      if ( _deletionsOutput != null ) {
-         _deletionsOutput.flush();
-         _deletionsOutputChannel.force(false);
-      }
       writeMeta();
       for ( DumpIndex<E> index : new ArrayList<>(_indexes) ) {
          index.flushMeta();
