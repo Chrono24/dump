@@ -26,7 +26,7 @@ import util.dump.stream.ExternalizableObjectInputStream;
 import util.dump.stream.SingleTypeObjectInputStream;
 
 
-public class UniqueIndex<E> extends DumpIndex<E> {
+public class UniqueIndex<E> extends DumpIndex<E> implements UniqueConstraint<E> {
 
    protected TObjectLongHashMap _lookupObject;
    protected TLongLongHashMap   _lookupLong;
@@ -159,6 +159,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       return _lookupInt.keys();
    }
 
+   @Override
    public long[] getAllLongKeys() {
       return _lookupLong.keys();
    }
@@ -181,6 +182,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       return pos;
    }
 
+   @Override
    public Object getKey( E o ) {
       if ( _fieldIsInt ) {
          return getIntKey(o);
@@ -205,6 +207,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       throw new IllegalStateException("weird, all lookup maps are null");
    }
 
+   @Override
    public E lookup( int key ) {
       synchronized ( _dump ) {
          if ( !_fieldIsInt ) {
@@ -213,12 +216,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
          long pos = getPosition(key);
          if ( pos < 0 ) {
-            return (E)null;
+            return null;
          }
          return _dump.get(pos);
       }
    }
 
+   @Override
    public E lookup( long key ) {
       synchronized ( _dump ) {
          if ( !_fieldIsLong ) {
@@ -227,12 +231,13 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
          long pos = getPosition(key);
          if ( pos < 0 ) {
-            return (E)null;
+            return null;
          }
          return _dump.get(pos);
       }
    }
 
+   @Override
    public E lookup( Object key ) {
       synchronized ( _dump ) {
          if ( (_fieldIsLong || _fieldIsLongObject) && key instanceof Long ) {
@@ -247,7 +252,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
          long pos = getPosition(key);
          if ( pos < 0 ) {
-            return (E)null;
+            return null;
          }
          return _dump.get(pos);
       }
