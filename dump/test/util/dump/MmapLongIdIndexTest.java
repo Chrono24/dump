@@ -358,11 +358,12 @@ public class MmapLongIdIndexTest {
       for ( int i = 0; i < BEAN_SIZE - 15; i++ ) { // 15 is an estimation for the size of the Bean instance without this padding
          sb.append('0');
       }
+      String padding = sb.toString();
 
       /* add some elements */
       long t = System.currentTimeMillis();
       for ( int i = 0; i < _dumpSize; i++ ) {
-         dump.add(new Bean(i, i + sb.toString()));
+         dump.add(new Bean(i, i + padding));
       }
       System.out.println("Written " + _dumpSize + " instances to dump. Needed " + (System.currentTimeMillis() - t) / (float)_dumpSize + " ms/instance.");
    }
