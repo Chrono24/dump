@@ -16,4 +16,15 @@ public interface UniqueConstraint<E> {
    E lookup( long key );
    E lookup( Object key );
 
+   /**
+    * This Exception is thrown, when trying to add a non-unique index-value to a dump.
+    */
+   class DuplicateKeyException extends RuntimeException {
+
+      private static final long serialVersionUID = -7959993269514169802L;
+
+      public DuplicateKeyException( String message ) {
+         super(message);
+      }
+   }
 }
