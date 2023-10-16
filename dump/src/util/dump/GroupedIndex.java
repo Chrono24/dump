@@ -3,7 +3,7 @@ package util.dump;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import util.dump.UniqueIndex.DuplicateKeyException;
+import util.dump.UniqueConstraint.DuplicateKeyException;
 import util.dump.reflection.FieldAccessor;
 
 

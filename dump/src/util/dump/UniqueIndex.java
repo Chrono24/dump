@@ -671,16 +671,4 @@ public class UniqueIndex<E> extends DumpIndex<E> implements UniqueConstraint<E> 
       }
    }
 
-   /**
-    * This Exception is thrown, when trying to add a non-unique index-value to a dump.
-    */
-   public static class DuplicateKeyException extends RuntimeException {
-
-      private static final long serialVersionUID = -7959993269514169802L;
-
-      public DuplicateKeyException( String message ) {
-         super(message);
-      }
-   }
-
 }
