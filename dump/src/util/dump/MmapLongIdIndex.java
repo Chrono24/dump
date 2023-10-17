@@ -28,11 +28,14 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.map.TLongLongMap;
+import gnu.trove.map.hash.TLongLongHashMap;
 import jdk.incubator.foreign.GroupLayout;
 import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemoryLayout.PathElement;
 import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
+import util.dump.cache.LRUCache;
 import util.dump.reflection.FieldAccessor;
 import util.dump.reflection.FieldFieldAccessor;
 import util.dump.reflection.Reflection;
@@ -49,6 +52,8 @@ import util.dump.reflection.Reflection;
 public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueConstraint<E> {
 
    private static final Logger _log = LoggerFactory.getLogger(MmapLongIdIndex.class);
+
+   private static final boolean PARANOIA_MODE = true;
 
    private static final VarHandle LONG_ARRAY_ACCESS = sequenceLayout(JAVA_LONG).varHandle(long.class, sequenceElement());
 
@@ -95,7 +100,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    protected final long _minKey;
    protected final long _maxKey;
 
-   private final HeaderCorrections _headerCorrections = new HeaderCorrections();
+   private final IndexCorrections _indexCorrections = new IndexCorrections();
 
    protected FileLayout _fileLayout;
    private   Header     _header;
@@ -277,9 +282,13 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    }
 
    protected boolean checkNumKeys( Header header ) {
-      if ( header.getNumKeys() <= 0 ) {
+      if ( header.getNumKeys() < 0 ) {
          return false;
       }
+      if ( header.getNumKeys() == 0 && _dump.getDumpSize() > 0 ) {
+         return false;
+      }
+
       return header.getNumKeys() <= header.getTableBytes() / Long.BYTES;
    }
 
@@ -399,46 +408,28 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    }
 
    private void applyHeaderCorrections() {
-      if ( _headerCorrections.numKeys != null ) {
-         _header.setNumKeys(_headerCorrections.numKeys);
+      if ( _indexCorrections.numKeys != null ) {
+         _log.info("{} fixing header...", _lookupPath.getFileName());
+         _header.setNumKeys(_indexCorrections.numKeys);
       }
    }
 
-   private boolean checkConsistency( Header header, MemorySegment tableSegment ) {
-      boolean consistent = true;
-      long start = System.nanoTime();
+   private void applyTableCorrections() {
+      if ( _indexCorrections.rawContentCorrections != null ) {
+         _log.info("{} fixing table...", _lookupPath.getFileName());
+         _indexCorrections.rawContentCorrections.forEachEntry(( index, posInfo ) -> {
+            longArraySet(_tableSegment, index, posInfo);
+            return true;
+         });
 
-      long dumpSize = _dump._outputStream._n;
-      long numKeys = 0;
-      for ( long i = 0, n = capacity(tableSegment); i < n; ++i ) {
-         // not used during live operation, hence concurrency is not an issue
-         long pos = getPosAt(tableSegment, i);
-         if ( pos >= 0 ) {
-            if ( _dump._deletedPositions.contains(pos) ) {
-               _log.warn("{} Found deleted position! Will rebuild index.", _lookupPath.getFileName());
-               consistent = false; // TODO: probably just an incomplete write during deletion, add offending positions to header corrections for later removal
-            }
-            if ( pos >= dumpSize ) {
-               _log.warn("{} Found position {} beyond the end of the dump file with size {}! Will rebuild index.", _lookupPath.getFileName(), pos, dumpSize);
-               consistent = false;
-            }
-
-            ++numKeys;
+         if ( _header.getNumKeys() != getAllLongKeys().length ) {
+            throw new IllegalStateException(_lookupPath.getFileName() + " inconsistencies post-fixup, wtf");
          }
       }
+   }
 
-      if ( numKeys != header.getNumKeys() ) {
-         _log.info("{} numKeys differ between actual table ({}) and caching header ({}), fixing.", _lookupPath.getFileName(), numKeys, header.getNumKeys());
-         _headerCorrections.numKeys = numKeys;
-      }
-
-      Duration duration = Duration.ofNanos(System.nanoTime() - start);
-      if ( consistent ) {
-         _log.info("{} was checked and found to be {} in {}", _lookupPath.getFileName(), "consistent", duration);
-      } else {
-         _log.warn("{} was checked and found to be {} in {}", _lookupPath.getFileName(), "inconsistent", duration);
-      }
-      return consistent;
+   private boolean checkConsistency( Header header, MemorySegment tableSegment ) throws IOException {
+      return new ConsistencyCheck(header, tableSegment).perform();
    }
 
    private boolean checkHeader() {
@@ -500,7 +491,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          }
 
          // not closed properly, or inconsistency between dump file and header state
-         if ( header.getOpenedTimestamp() >= header.getClosedTimestamp() || header.getNumKeys() == 0 && _dump.getDumpSize() > 0 ) {
+         if ( header.getOpenedTimestamp() >= header.getClosedTimestamp() ) {
             _log.info("{} was not closed properly, checking consistency...", _lookupPath.getFileName());
             checkRequired = true;
          }
@@ -508,6 +499,11 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          // plausibility checks
          if ( !checkNumKeys(header) ) {
             _log.info("{} has stored implausible numKeys, checking consistency...", _lookupPath.getFileName());
+            checkRequired = true;
+         }
+
+         if ( PARANOIA_MODE && !checkRequired ) {
+            _log.info("{} hardcoded paranoia mode enabled, checking consistency...", _lookupPath.getFileName());
             checkRequired = true;
          }
 
@@ -522,8 +518,8 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
          return true;
       }
-      catch ( Exception e ) {
-         throw new RuntimeException(e);
+      catch ( Exception argh ) {
+         throw new RuntimeException(argh);
       }
 
    }
@@ -647,11 +643,14 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       openHeader(mapHeaderSegment());
 
       mapTableSegment();
+
+      applyTableCorrections();
    }
 
    private void openHeader( MemorySegment headerSegment ) {
       _header = new Header(_fileLayout, headerSegment);
       _header.setOpenedTimestamp(System.currentTimeMillis());
+
       applyHeaderCorrections();
    }
 
@@ -941,7 +940,8 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
       private static long deriveMaxKeyFrom( long minKey ) {
          // this basically rotates the zero-index of the array, just like simple index addition/subtraction does during offset compensation
-         return Long.MAX_VALUE + minKey;
+         // return Long.MAX_VALUE + minKey; // this totally screws up the < comparison
+         return minKey < 0 ? Long.MAX_VALUE + minKey : Long.MAX_VALUE;
       }
 
       private final Object _growLock = new Object();
@@ -983,10 +983,18 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    }
 
 
-   private static final class HeaderCorrections {
+   private static final class IndexCorrections {
 
       Long numKeys;
 
+      TLongLongMap rawContentCorrections; // no key or pos offsets here, just write values to array indexes verbatim
+
+      TLongLongMap rawContentCorrections() {
+         if ( rawContentCorrections == null ) {
+            rawContentCorrections = new TLongLongHashMap();
+         }
+         return rawContentCorrections;
+      }
    }
 
 
@@ -1031,5 +1039,195 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          return (Long)_layoutVersion.get(_memorySegment);
       }
 
+   }
+
+
+   private final class ConsistencyCheck {
+
+      private final Header        _header;
+      private final MemorySegment _tableSegment;
+      private final long          _segmentCapacity;
+
+      private boolean _consistent = true;
+
+      private long _numKeysInIndex;
+
+      public ConsistencyCheck( Header header, MemorySegment tableSegment ) {
+         _header = header;
+         _tableSegment = tableSegment;
+         _segmentCapacity = capacity(_tableSegment);
+      }
+
+      public boolean perform() throws IOException {
+         long start = System.nanoTime();
+
+         preloadSegment();
+         checkNumKeys();
+
+         if ( PARANOIA_MODE ) {
+            Map<Long, byte[]> originalCache = _dump._cache;
+            if ( originalCache != null ) { // otherwise things are uninitialized and lead to NPEs
+               _dump.setCache(new LRUCache<>((int)_numKeysInIndex * 2, 0.5f)); // temporarily increase cache
+            }
+            try (ResourceScope scope = ResourceScope.newConfinedScope()) {
+               MemorySegment dumpSegment = preloadDump(_dump, scope);
+
+               checkDumpElements();
+               checkIndexElements();
+
+               _log.info("{} releasing preload mapping of size {}", _lookupPath.getFileName(), dumpSegment.byteSize());
+            }
+            finally {
+               _dump.setCache(originalCache); // restore original configuration
+            }
+         }
+
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         if ( _consistent ) {
+            _log.info("{} was checked and found to be {} in {}", _lookupPath.getFileName(), "consistent", duration);
+         } else {
+            _log.warn("{} was checked and found to be {} in {}", _lookupPath.getFileName(), "inconsistent", duration);
+         }
+
+         return _consistent;
+      }
+
+      private void checkDumpElements() {
+         long start = System.nanoTime();
+         long numKeysInDump = 0;
+
+         long maxKey = _header.getMaxKey();
+         DumpIterator<E> iterator = _dump.iterator();
+         while ( iterator.hasNext() ) {
+            ++numKeysInDump;
+
+            E element = iterator.next();
+
+            long elementKey = keyFor(element);
+            long elementIndex = keyOffsetApply(elementKey); // intentionally not bounds-checked
+
+            // not used during live operation, hence concurrency is not an issue
+            long posInIndex = getPosAt(_tableSegment, elementIndex);
+            long posInDump = iterator.getPosition();
+
+            if ( elementKey > maxKey ) {
+               _consistent = false;
+               _log.warn("{} Dump contains element with key {}, but upper bound for key is {}! Will rebuild index.", _lookupPath.getFileName(), elementKey,
+                     maxKey);
+            } else if ( elementIndex >= _segmentCapacity ) {
+               _log.info(
+                     "{} Dump contains element with key {}, but segment capacity is {}. Has probably been added to dump already, but not yet to index; fixing.",
+                     _lookupPath.getFileName(), elementKey, _segmentCapacity);
+               _indexCorrections.rawContentCorrections().put(keyOffsetApply(elementKey), posOffsetApply(posInDump));
+            }
+
+            if ( posInIndex != posInDump ) {
+               _consistent = false;
+               _log.warn("{} Index claims element with key {} to be at position {}, but dump insists on {}! Will rebuild index.", _lookupPath.getFileName(),
+                     elementKey, posInIndex, posInDump);
+            }
+         }
+         if ( _numKeysInIndex != numKeysInDump ) {
+            _log.warn("{} numKeys differ between index ({}) and dump ({}), fixing.", _lookupPath.getFileName(), _numKeysInIndex, numKeysInDump);
+            _indexCorrections.numKeys = numKeysInDump;
+         }
+
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         _log.info("{} was checked against dump iteration in {}", _lookupPath.getFileName(), duration);
+      }
+
+      private void checkIndexElements() {
+         long start = System.nanoTime();
+         for ( long arrayIndex = 0; arrayIndex < _segmentCapacity; ++arrayIndex ) {
+            // not used during live operation, hence concurrency is not an issue
+            long position = getPosAt(_tableSegment, arrayIndex);
+            if ( position >= 0 ) {
+               try {
+                  E element = _dump.get(position);
+
+                  if ( element == null ) {
+                     _consistent = false;
+                     _log.error("{} This is weird! Found position {} not to be deleted, but dump still returns null! Will rebuild index.",
+                           _lookupPath.getFileName(), position);
+                  } else {
+                     long arrayKey = keyOffsetRevert(arrayIndex);
+
+                     long elementKey = keyFor(element);
+                     long elementIndex = keyOffsetApply(elementKey); // intentionally not bounds-checked
+
+                     if ( elementIndex != arrayIndex ) {
+                        _consistent = false;
+                        _log.warn(
+                              "{} Found position {} for key {} at index {}, but corresponding element from dump with key {} belongs at index {}! Will rebuild index.",
+                              _lookupPath.getFileName(), position, arrayKey, arrayIndex, elementKey, elementIndex);
+                     }
+                  }
+               }
+               catch ( Exception argh ) {
+                  _consistent = false;
+                  _log.warn("{} Caught exception trying to get element at pos {} from dump! Will rebuild index.", _lookupPath.getFileName(), position, argh);
+               }
+            }
+         }
+
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         _log.info("{} was checked against dump lookups in {}", _lookupPath.getFileName(), duration);
+      }
+
+      private void checkNumKeys() {
+         long start = System.nanoTime();
+         long numKeysInIndex = 0;
+
+         long dumpSize = _dump.getDumpSize();
+         for ( long arrayIndex = 0; arrayIndex < _segmentCapacity; ++arrayIndex ) {
+            long position = getPosAt(_tableSegment, arrayIndex);
+            if ( position >= 0 ) {
+               ++numKeysInIndex;
+
+               if ( position >= dumpSize ) {
+                  _consistent = false;
+                  _log.warn("{} Found position {} beyond the end of the dump file with size {}! Will rebuild index.", _lookupPath.getFileName(), position,
+                        dumpSize);
+               }
+
+               if ( _dump._deletedPositions.contains(position) ) {
+                  _log.warn("{} Found deleted position {} at index {}. Has probably been deleted from dump already, but not yet from index; fixing.",
+                        _lookupPath.getFileName(), position, arrayIndex);
+                  _indexCorrections.rawContentCorrections().put(arrayIndex, 0);
+               }
+            }
+         }
+         if ( _header.getNumKeys() != numKeysInIndex ) {
+            _log.info("{} numKeys differ between caching header ({}) and bare count in actual table ({}), fixing.", _lookupPath.getFileName(),
+                  _header.getNumKeys(), numKeysInIndex);
+            _indexCorrections.numKeys = numKeysInIndex;
+         }
+
+         _numKeysInIndex = numKeysInIndex;
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         _log.info("{} had its contents checked in {}", _lookupPath.getFileName(), duration);
+      }
+
+      private MemorySegment preloadDump( Dump<E> dump, ResourceScope scope ) throws IOException {
+         long start = System.nanoTime();
+
+         Path dumpPath = Paths.get(dump._dumpFile.getPath());
+         long dumpSize = dump.getDumpSize();
+         MemorySegment dumpSegment = MemorySegment.mapFile(dumpPath, 0, dumpSize, READ_ONLY, scope);
+         dumpSegment.load(); // force-fetch into memory
+
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         _log.info("{} was mapped and preloaded in {}", dumpPath.getFileName(), duration);
+         return dumpSegment;
+      }
+
+      private void preloadSegment() {
+         long start = System.nanoTime();
+
+         _tableSegment.load(); // force-fetch into memory
+
+         Duration duration = Duration.ofNanos(System.nanoTime() - start);
+         _log.info("{} was preloaded in {}", _lookupPath.getFileName(), duration);
+      }
    }
 }
