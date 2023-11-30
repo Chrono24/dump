@@ -13,7 +13,7 @@ public class StringDeduplicator {
          return null;
       }
 
-      if ( value.length() == 0 ) {
+      if ( value.isEmpty() ) {
          return ""; // return interned value
       }
 
@@ -25,7 +25,7 @@ public class StringDeduplicator {
          return null;
       }
 
-      if ( value.length() == 0 ) {
+      if ( value.isEmpty() ) {
          return ""; // return interned value
       }
 
