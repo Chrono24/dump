@@ -1206,7 +1206,8 @@ class ExternalizationHelper {
          }
 
          _class = clientClass;
-         _classLoader = clientClass.getClassLoader();
+         _classLoader = Thread.currentThread().getContextClassLoader();
+
          List<FieldInfo> fieldInfos = new ArrayList<>();
 
          initFromFields(fieldInfos);
