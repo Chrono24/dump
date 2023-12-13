@@ -14,7 +14,7 @@ import java.util.List;
 import util.dump.Dump;
 import util.dump.DumpUtils;
 import util.dump.ExternalizableBean;
-import util.dump.time.StopWatch;
+import util.time.StopWatch;
 
 
 public class CompressionBenchmark {

@@ -59,7 +59,7 @@ import util.dump.stream.AesCrypter;
 import util.dump.stream.Compression;
 import util.dump.stream.ObjectStreamProvider;
 import util.dump.stream.SingleTypeObjectStreamProvider;
-import util.dump.time.StopWatch;
+import util.time.StopWatch;
 
 
 /**
