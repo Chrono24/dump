@@ -1,6 +1,6 @@
 package util.dump;
 
-import util.dump.time.StopWatch;
+import util.time.StopWatch;
 
 
 public class ThreadLocalBenchmark {

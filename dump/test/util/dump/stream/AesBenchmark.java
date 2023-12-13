@@ -6,7 +6,7 @@ import java.io.IOException;
 import util.dump.Dump;
 import util.dump.DumpUtils;
 import util.dump.ExternalizableBean;
-import util.dump.time.StopWatch;
+import util.time.StopWatch;
 
 
 public class AesBenchmark {

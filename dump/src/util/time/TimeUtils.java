@@ -1,4 +1,4 @@
-package util.dump.time;
+package util.time;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;

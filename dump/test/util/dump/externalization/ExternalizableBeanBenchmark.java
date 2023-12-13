@@ -17,7 +17,7 @@ import util.dump.ExternalizableBeanTest.TestBean;
 import util.dump.ExternalizableBeanTest.TestBeanSimple;
 import util.dump.stream.SingleTypeObjectInputStream;
 import util.dump.stream.SingleTypeObjectOutputStream;
-import util.dump.time.StopWatch;
+import util.time.StopWatch;
 
 
 public class ExternalizableBeanBenchmark {
