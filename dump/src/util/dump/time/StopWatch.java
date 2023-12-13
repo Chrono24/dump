@@ -1,5 +1,8 @@
 package util.dump.time;
 
+import java.util.concurrent.TimeUnit;
+
+
 /**
  * <h2>Usage example:</h2>
  *
@@ -26,24 +29,34 @@ public class StopWatch {
    private long    _start;
    private boolean _resetOnToString = false;
 
-
    public StopWatch() {
       reset();
    }
 
-   /** returns the current interval in milliseconds */
+   /**
+    * returns the current interval in milliseconds
+    */
    public long getInterval() {
-      return System.currentTimeMillis() - _start;
+      return (TimeUnit.NANOSECONDS.toMillis(getIntervalNanos()));
+   }
+
+   /**
+    * returns the current interval in nanoseconds
+    */
+   public long getIntervalNanos() {
+      return System.nanoTime() - _start;
    }
 
    /**
     * resets the start time to the current time
     */
    public void reset() {
-      _start = System.currentTimeMillis();
+      _start = System.nanoTime();
    }
 
-   /** resets the timer every time the toString() method is called.
+   /**
+    * resets the timer every time the toString() method is called.
+    *
     * @return returns this, to enable fluent usage
     */
    public StopWatch setResetOnToString( boolean resetOnToString ) {
@@ -53,9 +66,10 @@ public class StopWatch {
 
    @Override
    public String toString() {
-      long milliseconds = System.currentTimeMillis() - _start;
-      if ( _resetOnToString )
+      long nanos = System.nanoTime() - _start;
+      if ( _resetOnToString ) {
          reset();
-      return TimeUtils.toHumanReadableFormat(milliseconds);
+      }
+      return TimeUtils.toHumanReadableFormat(TimeUnit.NANOSECONDS.toMillis(nanos));
    }
 }
