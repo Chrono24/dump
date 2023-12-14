@@ -1,6 +1,21 @@
 package util.dump.reflection;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+
+
 public interface FieldAccessor {
+
+   static Class getRawType( Type type ) {
+      if ( type instanceof Class klass ) {
+         return klass;
+      }
+      if ( type instanceof ParameterizedType pt ) {
+         return getRawType(pt.getRawType());
+      }
+
+      throw new IllegalArgumentException(type.getClass() + " not supporteed");
+   }
 
   public Object get( Object obj ) throws Exception;
 
