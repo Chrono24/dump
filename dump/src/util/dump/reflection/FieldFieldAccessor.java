@@ -19,7 +19,7 @@ public class FieldFieldAccessor implements FieldAccessor {
       Type[] actualTypeArguments = ((ParameterizedType)type).getActualTypeArguments();
       _genericTypes = new Class[actualTypeArguments.length];
       for (int i = 0, length = actualTypeArguments.length; i < length; i++) {
-        _genericTypes[i] = (Class)actualTypeArguments[i];
+        _genericTypes[i] = FieldAccessor.getRawType(actualTypeArguments[i]);
       }
     }
   }
