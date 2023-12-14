@@ -49,7 +49,8 @@ class ExternalizationHelper {
    private static final Set<Class<?>> IMPLEMENTED_GENERICS = Set.of( //
          Boolean.class, Byte.class, Character.class, Short.class, Integer.class, Long.class, Float.class, Double.class, //
          String.class, Enum.class, //
-         boolean[].class, byte[].class, char[].class, short[].class, int[].class, long[].class, float[].class, double[].class //
+         boolean[].class, byte[].class, char[].class, short[].class, int[].class, long[].class, float[].class, double[].class, //
+         Collection.class, List.class, Set.class //
    );
 
    static boolean USE_UNSAFE_FIELD_ACCESSORS = true;
