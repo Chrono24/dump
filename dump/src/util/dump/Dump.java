@@ -265,36 +265,39 @@ public class Dump<E> implements DumpInput<E> {
       OPENED_DUMPS.add(this);
       _cacheSize = cacheSize;
       try {
-         checkVersion();
-
          if ( !isReadonly() && !_mode.contains(DumpAccessFlag.shared) ) {
             // the lock is released as soon as the RandomAccessFile is closed (stackoverflow.com/questions/421833)
             acquireFileLock();
          }
 
          readDeletions();
+         initMeta();
 
-         if ( shouldBePruned() ) {
-            StopWatch t = new StopWatch();
-            _log.info("need to prune {} deleted entries from {}", _deletedPositions.size(), _dumpFile);
-            prune();
-            _log.info("...pruned {} in {}", _dumpFile, t);
+         if ( !isReadonly() ) {
+            checkVersion();
+
+            if ( shouldBePruned() ) {
+               StopWatch t = new StopWatch();
+               _log.info("need to prune {} deleted entries from {}", _deletedPositions.size(), _dumpFile);
+               prune();
+               _log.info("...pruned {} in {}", _dumpFile, t);
+            }
+
+            FileOutputStream fileOutputStream = new FileOutputStream(_dumpFile, true);
+            BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream, DumpWriter.DEFAULT_BUFFER_SIZE);
+            _outputStream = new PositionAwareOutputStream(bufferedOutputStream, _dumpFile.length());
+            _outputStreamChannel = fileOutputStream.getChannel();
+            _writer = new DumpWriter<>(_outputStream, 0, _streamProvider);
+            _updateRaf = new RandomAccessFile(_dumpFile, "rw");
+
+            writeDictionary();
+
+            _updateByteOutput = new ByteArrayOutputStream(1024);
+            _updateOut = _streamProvider.createObjectOutput(_updateByteOutput);
          }
 
-         FileOutputStream fileOutputStream = new FileOutputStream(_dumpFile, true);
-         BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream, DumpWriter.DEFAULT_BUFFER_SIZE);
-         _outputStream = new PositionAwareOutputStream(bufferedOutputStream, _dumpFile.length());
-         _outputStreamChannel = fileOutputStream.getChannel();
-         _writer = new DumpWriter<>(_outputStream, 0, _streamProvider);
          _raf = new RandomAccessFile(_dumpFile, "r");
-         _updateRaf = new RandomAccessFile(_dumpFile, "rw");
          _reader = new DumpReader<>(_dumpFile, false, _streamProvider);
-
-         initMeta();
-         writeDictionary();
-
-         _updateByteOutput = new ByteArrayOutputStream(1024);
-         _updateOut = _streamProvider.createObjectOutput(_updateByteOutput);
       }
       catch ( Exception argh ) {
          try {
@@ -485,6 +488,10 @@ public class Dump<E> implements DumpInput<E> {
     * Indes metas are also flushed.
     */
    public void flushMeta() throws IOException {
+      if ( isReadonly() ) {
+         return;
+      }
+
       writeMeta();
       for ( DumpIndex<E> index : new ArrayList<>(_indexes) ) {
          index.flushMeta();
@@ -1063,6 +1070,10 @@ public class Dump<E> implements DumpInput<E> {
    }
 
    void writeMeta() throws IOException {
+      if ( isReadonly() ) {
+         return;
+      }
+
       getMetaRAF().seek(0);
       getMetaRAF().writeLong(_sequence);
 
@@ -1096,7 +1107,6 @@ public class Dump<E> implements DumpInput<E> {
    }
 
    private void checkVersion() throws IOException {
-      initMeta();
       int codeVersion = getVersionFromCode();
       int dumpVersion = getVersionFromDump();
       if ( dumpVersion != codeVersion ) {

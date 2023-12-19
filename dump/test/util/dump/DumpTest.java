@@ -58,9 +58,20 @@ public class DumpTest {
       }
    }
 
-   @Test(expected = AccessControlException.class)
-   public void testAddWithoutAccessRight() throws Exception {
+   @Test(expected = RuntimeException.class)
+   public void testAddWithoutAccessRight_FileNotFoundDueToReadOnly() throws Exception {
       File dumpFile = new File("DumpTest.dmp");
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.read)) {
+         dump.add(new Bean(1));
+      }
+   }
+
+   @Test(expected = AccessControlException.class)
+   public void testAddWithoutAccessRight_FileExistsDueToPreviousWriteAccess() throws Exception {
+      File dumpFile = new File("DumpTest.dmp");
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add)) {
+         // do nothing, just initialize the file
+      }
       try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.read)) {
          dump.add(new Bean(1));
       }
