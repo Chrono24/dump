@@ -272,10 +272,9 @@ public class Dump<E> implements DumpInput<E> {
 
          readDeletions();
          initMeta();
+         checkVersion();
 
          if ( !isReadonly() ) {
-            checkVersion();
-
             if ( shouldBePruned() ) {
                StopWatch t = new StopWatch();
                _log.info("need to prune {} deleted entries from {}", _deletedPositions.size(), _dumpFile);
@@ -1114,33 +1113,52 @@ public class Dump<E> implements DumpInput<E> {
       int dumpVersion = getVersionFromDump();
       if ( dumpVersion != codeVersion ) {
          if ( _dumpFile.exists() ) {
-            switch ( getOnIncompatibleVersion() ) {
-            case RenameDump: {
-               _log.warn("externalizationVersion in dump {} does not match current version {}, will rename old dump files", dumpVersion, codeVersion);
-               renameFile(_dumpFile, new File(_dumpFile.getAbsolutePath() + ".version" + dumpVersion));
-               renameFile(_deletionsFile, new File(_deletionsFile.getAbsolutePath() + ".version" + dumpVersion));
-               resetMeta();
-               break;
-            }
-            case DeleteDump: {
-               _log.warn("externalizationVersion in dump {} does not match current version {}, will delete old dump files", dumpVersion, codeVersion);
-               deleteFile(_dumpFile);
-               deleteFile(_deletionsFile);
-               resetMeta();
-               break;
-            }
-            case RewriteDump: {
-               StopWatch t = new StopWatch();
-               _log.warn("externalizationVersion in dump {} does not match current version {}, will rewrite dump files", dumpVersion, codeVersion);
-               prune(); // has its own way of meta invalidation
-               _log.info("...rewrote dump {} in {}", _dumpFile, t);
-            }
+            final String msg = "externalizationVersion in dump {} does not match current version {}, {}";
+
+            if ( isReadonly() ) {
+               _log.warn(msg, dumpVersion, codeVersion, "not doing anything due to read-only mode");
+               switch ( getOnIncompatibleVersion() ) {
+               case RenameDump: {
+                  throw new AccessControlException("Renaming Dump is not allowed in read-only mode.");
+               }
+               case DeleteDump: {
+                  throw new AccessControlException("Deleting Dump is not allowed in read-only mode.");
+               }
+               case RewriteDump: {
+                  // do nothing, allowing potential readers to write the contents to some other dump in proper externalization version
+               }
+               }
+            } else {
+               switch ( getOnIncompatibleVersion() ) {
+               case RenameDump: {
+                  _log.warn(msg, dumpVersion, codeVersion, "will rename old dump files");
+                  renameFile(_dumpFile, new File(_dumpFile.getAbsolutePath() + ".version" + dumpVersion));
+                  renameFile(_deletionsFile, new File(_deletionsFile.getAbsolutePath() + ".version" + dumpVersion));
+                  resetMeta();
+                  break;
+               }
+               case DeleteDump: {
+                  _log.warn(msg, dumpVersion, codeVersion, "will delete old dump files");
+                  deleteFile(_dumpFile);
+                  deleteFile(_deletionsFile);
+                  resetMeta();
+                  break;
+               }
+               case RewriteDump: {
+                  StopWatch t = new StopWatch();
+                  _log.warn(msg, dumpVersion, codeVersion, "will rewrite dump files");
+                  prune(); // has its own way of meta invalidation
+                  _log.info("...rewrote dump {} in {}", _dumpFile, t);
+               }
+               }
             }
          }
       }
 
-      setExternalizationVersionInMetaData();
-      writeMeta();
+      if ( !isReadonly() ) {
+         setExternalizationVersionInMetaData();
+         writeMeta();
+      }
    }
 
    private void deleteFile( File file ) throws IOException {
