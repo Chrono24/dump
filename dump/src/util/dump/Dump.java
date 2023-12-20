@@ -405,7 +405,9 @@ public class Dump<E> implements DumpInput<E> {
       if ( _updateRaf != null ) {
          _updateRaf.close();
       }
-      writeMeta();
+      if ( !isReadonly() ) {
+         writeMeta();
+      }
       if ( _metaRaf != null ) {
          _metaRaf.close();
          _metaRaf = null;
@@ -489,7 +491,7 @@ public class Dump<E> implements DumpInput<E> {
     */
    public void flushMeta() throws IOException {
       if ( isReadonly() ) {
-         return;
+         throw new AccessControlException("Flushing meta-data not allowed in read-only mode.");
       }
 
       writeMeta();
@@ -846,6 +848,10 @@ public class Dump<E> implements DumpInput<E> {
     * @return false if the dump was already locked
     */
    protected boolean acquireFileLock() {
+      if ( isReadonly() ) {
+         return false;
+      }
+
       synchronized ( this ) {
          try {
             if ( _dumpLock != null ) {
@@ -1068,7 +1074,7 @@ public class Dump<E> implements DumpInput<E> {
 
    void writeMeta() throws IOException {
       if ( isReadonly() ) {
-         return;
+         throw new AccessControlException("Writing meta-data not allowed in read-only mode.");
       }
 
       getMetaRAF().seek(0);
