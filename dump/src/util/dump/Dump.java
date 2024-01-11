@@ -51,7 +51,7 @@ import gnu.trove.list.TByteList;
 import gnu.trove.list.array.TByteArrayList;
 import gnu.trove.set.hash.TLongHashSet;
 import util.dump.ExternalizableBean.externalizationVersion;
-import util.dump.UniqueIndex.DuplicateKeyException;
+import util.dump.UniqueConstraint.DuplicateKeyException;
 import util.dump.cache.SoftLRUCache;
 import util.dump.io.IOUtils;
 import util.dump.sort.InfiniteSorter;
