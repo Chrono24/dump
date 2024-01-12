@@ -35,7 +35,6 @@ import jdk.incubator.foreign.MemoryLayout;
 import jdk.incubator.foreign.MemoryLayout.PathElement;
 import jdk.incubator.foreign.MemorySegment;
 import jdk.incubator.foreign.ResourceScope;
-import util.dump.cache.LRUCache;
 import util.dump.reflection.FieldAccessor;
 import util.dump.reflection.FieldFieldAccessor;
 import util.dump.reflection.Reflection;
@@ -1062,23 +1061,15 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          long start = System.nanoTime();
 
          preloadSegment();
-         checkNumKeys();
+         checkIndexContents();
 
          if ( PARANOIA_MODE ) {
-            Map<Long, byte[]> originalCache = _dump._cache;
-            if ( originalCache != null ) { // otherwise things are uninitialized and lead to NPEs
-               _dump.setCache(new LRUCache<>((int)_numKeysInIndex * 2, 0.5f)); // temporarily increase cache
-            }
             try (ResourceScope scope = ResourceScope.newConfinedScope()) {
                MemorySegment dumpSegment = preloadDump(_dump, scope);
 
-               checkDumpElements();
-               checkIndexElements();
+               checkDumpContents();
 
                _log.info("{} releasing preload mapping of size {}", _lookupPath.getFileName(), dumpSegment.byteSize());
-            }
-            finally {
-               _dump.setCache(originalCache); // restore original configuration
             }
          }
 
@@ -1092,7 +1083,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          return _consistent;
       }
 
-      private void checkDumpElements() {
+      private void checkDumpContents() {
          long start = System.nanoTime();
          long numKeysInDump = 0;
 
@@ -1136,45 +1127,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          _log.info("{} was checked against dump iteration in {}", _lookupPath.getFileName(), duration);
       }
 
-      private void checkIndexElements() {
-         long start = System.nanoTime();
-         for ( long arrayIndex = 0; arrayIndex < _segmentCapacity; ++arrayIndex ) {
-            // not used during live operation, hence concurrency is not an issue
-            long position = getPosAt(_tableSegment, arrayIndex);
-            if ( position >= 0 ) {
-               try {
-                  E element = _dump.get(position);
-
-                  if ( element == null ) {
-                     _consistent = false;
-                     _log.error("{} This is weird! Found position {} not to be deleted, but dump still returns null! Will rebuild index.",
-                           _lookupPath.getFileName(), position);
-                  } else {
-                     long arrayKey = keyOffsetRevert(arrayIndex);
-
-                     long elementKey = keyFor(element);
-                     long elementIndex = keyOffsetApply(elementKey); // intentionally not bounds-checked
-
-                     if ( elementIndex != arrayIndex ) {
-                        _consistent = false;
-                        _log.warn(
-                              "{} Found position {} for key {} at index {}, but corresponding element from dump with key {} belongs at index {}! Will rebuild index.",
-                              _lookupPath.getFileName(), position, arrayKey, arrayIndex, elementKey, elementIndex);
-                     }
-                  }
-               }
-               catch ( Exception argh ) {
-                  _consistent = false;
-                  _log.warn("{} Caught exception trying to get element at pos {} from dump! Will rebuild index.", _lookupPath.getFileName(), position, argh);
-               }
-            }
-         }
-
-         Duration duration = Duration.ofNanos(System.nanoTime() - start);
-         _log.info("{} was checked against dump lookups in {}", _lookupPath.getFileName(), duration);
-      }
-
-      private void checkNumKeys() {
+      private void checkIndexContents() {
          long start = System.nanoTime();
          long numKeysInIndex = 0;
 
