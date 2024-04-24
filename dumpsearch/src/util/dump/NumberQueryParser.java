@@ -52,6 +52,5 @@ public class NumberQueryParser extends QueryParser {
          return DoublePoint.newExactQuery(term.field(), Double.parseDouble(term.text()));
       }
       return super.newTermQuery(term);
-
    }
 }
