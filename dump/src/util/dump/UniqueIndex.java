@@ -338,7 +338,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       }
    }
 
-   protected boolean isCompactLookupNeeded() {
+   protected boolean isLookupCompactionNeeded() {
       final THash lookup;
 
       if ( _fieldIsInt ) {
@@ -615,7 +615,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    void delete( E o, long pos ) {
       boolean deleted = delete0(o, pos);
 
-      if ( deleted && isCompactLookupNeeded() ) {
+      if ( deleted && isLookupCompactionNeeded() ) {
          compactLookup();
       }
    }
