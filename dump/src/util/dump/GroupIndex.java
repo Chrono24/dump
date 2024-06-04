@@ -23,7 +23,6 @@ import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TLongIntHashMap;
-import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.procedure.TIntObjectProcedure;
 import gnu.trove.procedure.TLongObjectProcedure;
@@ -617,7 +616,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
    void delete( E o, long pos ) {
       boolean deleted = delete0(o, pos);
 
-      if ( deleted && isCompactLookupNeeded() ) {
+      if ( deleted && isLookupCompactionNeeded() ) {
          compactLookup();
       }
    }
@@ -655,7 +654,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
       return false;
    }
 
-   protected boolean isCompactLookupNeeded() {
+   protected boolean isLookupCompactionNeeded() {
       final THash lookup;
 
       if ( _fieldIsInt ) {
