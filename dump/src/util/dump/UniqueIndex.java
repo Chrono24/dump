@@ -13,6 +13,7 @@ import java.security.AccessControlException;
 import java.util.Collection;
 
 import gnu.trove.TLongCollection;
+import gnu.trove.impl.hash.THash;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
@@ -338,13 +339,17 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    }
 
    protected boolean isCompactLookupNeeded() {
+      final THash lookup;
+
       if ( _fieldIsInt ) {
-         return _lookupInt.size() > 1000 && _lookupInt.size() * 2.5 < _lookupInt._set.length;
+         lookup = _lookupInt;
       } else if ( _fieldIsLong ) {
-         return _lookupLong.size() > 1000 && _lookupLong.size() * 2.5 < _lookupLong._set.length;
+         lookup = _lookupLong;
       } else {
-         return _lookupObject.size() > 1000 && _lookupObject.size() * 2.5 < _lookupObject._set.length;
+         lookup = _lookupObject;
       }
+
+      return lookup != null && lookup.size() > 1000 && lookup.size() * 2.24f < lookup.capacity();
    }
 
    @Override
