@@ -76,10 +76,6 @@ public class UniqueIndex<E> extends DumpIndex<E> {
          }
 
          _lookupOutputStream.writeLong(pos);
-
-         if ( isCompactLookupNeeded() ) {
-            compactLookup();
-         }
       }
       catch ( IOException argh ) {
          throw new RuntimeException("Failed to add key to index " + getLookupFile(), argh);
@@ -612,28 +608,41 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
    @Override
    void delete( E o, long pos ) {
+      boolean deleted = delete0(o, pos);
+
+      if ( deleted && isCompactLookupNeeded() ) {
+         compactLookup();
+      }
+   }
+
+   private boolean delete0( E o, long pos ) {
       if ( _fieldIsInt ) {
          int key = getIntKey(o);
          long p = _lookupInt.get(key);
          if ( p == pos ) {
             _lookupInt.remove(key);
+            return true;
          }
       } else if ( _fieldIsLong ) {
          long key = getLongKey(o);
          long p = _lookupLong.get(key);
          if ( p == pos ) {
             _lookupLong.remove(key);
+            return true;
          }
       } else {
          Object key = getObjectKey(o);
          if ( key == null ) {
-            return;
+            return false;
          }
          long p = _lookupObject.get(key);
          if ( p == pos ) {
             _lookupObject.remove(key);
+            return true;
          }
       }
+
+      return false;
    }
 
    @Override
@@ -647,7 +656,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
       if ( noChange ) {
          return;
       }
-      delete(oldItem, pos); // remove from memory
+      delete0(oldItem, pos); // remove from memory
 
       addToIgnoredPositions(pos);
 
