@@ -33,8 +33,8 @@ import util.dump.reflection.FieldAccessor;
 
 /**
  * Allows lookup of non-unique keys, i.e. a lookup returns an Iterable instead of a single element.
- * If the key is null, the value is not stored in the index, so null is not treated as key. This 
- * behaviour allows sparse indexes.  
+ * If the key is null, the value is not stored in the index, so null is not treated as key. This
+ * behaviour allows sparse indexes.
  */
 public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
 
@@ -71,8 +71,8 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
 
 
    protected Map<Object, Positions>    _lookupObject;
-   protected TLongObjectMap<Positions> _lookupLong;
-   protected TIntObjectMap<Positions>  _lookupInt;
+   protected TLongObjectHashMap<Positions> _lookupLong;
+   protected TIntObjectHashMap<Positions>  _lookupInt;
 
 
    public GroupIndex( Dump<E> dump, FieldAccessor fieldAccessor ) {
@@ -323,10 +323,10 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
    protected void initLookupMap() {
       if ( _fieldIsInt ) {
          _lookupInt = new TIntObjectHashMap<>();
-         ((TIntObjectHashMap)_lookupInt).setAutoCompactionFactor(0.0f);
+         _lookupInt.setAutoCompactionFactor(0.0f);
       } else if ( _fieldIsLong ) {
          _lookupLong = new TLongObjectHashMap<>();
-         ((TLongObjectHashMap)_lookupLong).setAutoCompactionFactor(0.0f);
+         _lookupLong.setAutoCompactionFactor(0.0f);
       } else {
          _lookupObject = new HashMap<>();
       }
@@ -402,7 +402,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
                }
             }
             // optimize memory consumption of lookup
-            final TIntObjectMap<Positions> lookupInt = new TIntObjectHashMap<>(Math.max(1000, dynamicLookupInt.size()));
+            final TIntObjectHashMap<Positions> lookupInt = new TIntObjectHashMap<>(Math.max(1000, dynamicLookupInt.size()));
             dynamicLookupInt.forEachEntry(new TIntObjectProcedure<Positions>() {
 
                @Override
@@ -413,7 +413,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
                }
             });
             _lookupInt = lookupInt;
-            ((TIntObjectHashMap)_lookupInt).setAutoCompactionFactor(0.0f);
+            _lookupInt.setAutoCompactionFactor(0.0f);
 
          } else if ( _fieldIsLong ) {
             TLongObjectMap<Positions> dynamicLookupLong = new TLongObjectHashMap<>(10000);
@@ -458,7 +458,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
                }
             }
             // optimize memory consumption of lookup
-            final TLongObjectMap<Positions> lookupLong = new TLongObjectHashMap<>(Math.max(1000, dynamicLookupLong.size()));
+            final TLongObjectHashMap<Positions> lookupLong = new TLongObjectHashMap<>(Math.max(1000, dynamicLookupLong.size()));
             dynamicLookupLong.forEachEntry(new TLongObjectProcedure<Positions>() {
 
                @Override
@@ -614,12 +614,21 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
 
    @Override
    void delete( E o, long pos ) {
+      boolean deleted = delete0(o, pos);
+
+      if ( deleted && isCompactLookupNeeded() ) {
+         compactLookup();
+      }
+   }
+
+   private boolean delete0( E o, long pos ) {
       if ( _fieldIsInt ) {
          int key = getIntKey(o);
          Positions positions = _lookupInt.get(key);
          positions = removePosition(positions, pos);
          if ( positions.size() == 0 ) {
             _lookupInt.remove(key);
+            return true;
          }
       } else if ( _fieldIsLong ) {
          long key = getLongKey(o);
@@ -627,19 +636,48 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
          positions = removePosition(positions, pos);
          if ( positions.size() == 0 ) {
             _lookupLong.remove(key);
+            return true;
          }
       } else {
          Object key = getObjectKey(o);
          if ( key == null ) {
-            return;
+            return false;
          }
          Positions positions = _lookupObject.get(key);
          positions = removePosition(positions, pos);
          if ( positions.size() == 0 ) {
             _lookupObject.remove(key);
+            return true;
          }
       }
+
+      return false;
    }
+
+   protected boolean isCompactLookupNeeded() {
+      if ( _fieldIsInt ) {
+         return _lookupInt.size() > 1000 && _lookupInt.size() * 2.5 < _lookupInt._set.length;
+      } else if ( _fieldIsLong ) {
+         return _lookupLong.size() > 1000 && _lookupLong.size() * 2.5 < _lookupLong._set.length;
+      } else {
+         return false;
+      }
+   }
+
+   protected void compactLookup() {
+      if ( _fieldIsInt ) {
+         _lookupInt.compact();
+      } else if ( _fieldIsLong ) {
+         _lookupLong.compact();
+      }
+   }
+
+   @Override
+   protected void init() {
+      super.init();
+      compactLookup();
+   }
+
 
    @Override
    boolean isUpdatable( E oldItem, E newItem ) {
