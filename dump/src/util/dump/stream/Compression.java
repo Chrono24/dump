@@ -293,7 +293,7 @@ public enum Compression implements ByteArrayPacker {
       if ( dict != null ) {
          Zstd.decompressFastDict(target, 0, source, 0, sourceLength, getZDict(dict));
       } else {
-         Zstd.decompress(target, source);
+         Zstd.decompressByteArray(target, 0, target.length,  source, 0, sourceLength );
       }
       return target;
    }
