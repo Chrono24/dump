@@ -37,9 +37,16 @@ public class BoxedPrimitiveMigrationTest extends BaseExternalizableBeanRoundtrip
       assertThat(_beanThatWasRead).extracting("value").isEqualTo(11L);
    }
 
+   @Test
+   public void longPrimitiveToSparseBoxed() {
+      givenBean(new PrimitiveLong(13L));
+      whenBeanIsExternalizedAndRead(BoxedLong.class);
+      assertThat(_beanThatWasRead).extracting("value").isNull();
+   }
+
    public static final class BoxedLong implements ExternalizableBean {
 
-      @externalize(1)
+      @externalize(value = 1, pLongNullValue = 13L)
       Long value;
 
       public BoxedLong() {}

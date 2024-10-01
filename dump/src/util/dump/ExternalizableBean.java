@@ -228,6 +228,8 @@ public interface ExternalizableBean extends Externalizable {
             FieldType inputFt, configuredFt;
             FieldAccessor f = null;
             Class defaultType = null;
+            externalize annotation = null;
+
             if ( (fieldIndexes[j] & 0xff) == fieldIndex ) {
                final FieldType fft = configuredFt = inputFt = fieldTypes[j];
                f = fieldAccessors[j];
@@ -246,6 +248,7 @@ public interface ExternalizableBean extends Externalizable {
                   } else if ( fieldTypeId == FieldType.List._id && inputFt._id == FieldType.ListOfStrings._id ) {
                      inputFt = FieldType.List;
                   } else if ( isCompatible(FieldType.forId(fieldTypeId), fft) ) {
+                     annotation = config._annotations[j];
                      inputFt = FieldType.forId(fieldTypeId);
                   } else if ( Boolean.TRUE.equals(CLASS_CHANGED_INCOMPATIBLY.computeIfAbsent(getClass(), clazz -> {
                      LoggerFactory.getLogger(clazz).error("The field type of index " + fieldIndex + //
@@ -281,7 +284,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pInt -> f.setInt(this, d);
-                  case Integer -> f.set(this, d);
+                  case Integer -> f.set(this, annotation.sparseBoxed() && d == annotation.pIntNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -292,7 +295,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pBoolean -> f.setBoolean(this, d);
-                  case Boolean -> f.set(this, d);
+                  case Boolean -> f.set(this, annotation.sparseBoxed() && d == annotation.pBooleanNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -303,7 +306,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pByte -> f.setByte(this, d);
-                  case Byte -> f.set(this, d);
+                  case Byte -> f.set(this, annotation.sparseBoxed() && d == annotation.pByteNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -314,7 +317,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pChar -> f.setChar(this, d);
-                  case Character -> f.set(this, d);
+                  case Character -> f.set(this, annotation.sparseBoxed() && d == annotation.pCharNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -325,7 +328,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pDouble -> f.setDouble(this, d);
-                  case Double -> f.set(this, d);
+                  case Double -> f.set(this, annotation.sparseBoxed() && d == annotation.pDoubleNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -336,7 +339,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pFloat -> f.setFloat(this, d);
-                  case Float -> f.set(this, d);
+                  case Float -> f.set(this, annotation.sparseBoxed() && d == annotation.pFloatNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -347,7 +350,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pLong -> f.setLong(this, d);
-                  case Long -> f.set(this, d);
+                  case Long -> f.set(this, annotation.sparseBoxed() && d == annotation.pLongNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -358,7 +361,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pShort -> f.setShort(this, d);
-                  case Short -> f.set(this, d);
+                  case Short -> f.set(this, annotation.sparseBoxed() && d == annotation.pShortNullValue() ? null : d);
                   default -> throw new IllegalStateException();
                   }
                }
@@ -400,7 +403,7 @@ public interface ExternalizableBean extends Externalizable {
                Integer d = readInteger(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pInt -> f.setInt(this, d == null ? config._annotations[j].pIntNullValue() : d);
+                  case pInt -> f.setInt(this, d == null ? annotation.pIntNullValue() : d);
                   case Integer -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -412,7 +415,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   switch ( configuredFt ) {
                   case pBoolean -> //noinspection SimplifiableConditionalExpression
-                        f.setBoolean(this, d == null ? config._annotations[j].pBooleanNullValue() : false);
+                        f.setBoolean(this, d == null ? annotation.pBooleanNullValue() : false);
                   case Boolean -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -423,7 +426,7 @@ public interface ExternalizableBean extends Externalizable {
                Byte d = readByte(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pByte -> f.setByte(this, d == null ? config._annotations[j].pByteNullValue() : d);
+                  case pByte -> f.setByte(this, d == null ? annotation.pByteNullValue() : d);
                   case Byte -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -434,7 +437,7 @@ public interface ExternalizableBean extends Externalizable {
                Character d = readCharacter(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pChar -> f.setChar(this, d == null ? config._annotations[j].pCharNullValue() : d);
+                  case pChar -> f.setChar(this, d == null ? annotation.pCharNullValue() : d);
                   case Character -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -445,7 +448,7 @@ public interface ExternalizableBean extends Externalizable {
                Double d = readDouble(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pDouble -> f.setDouble(this, d == null ? config._annotations[j].pDoubleNullValue() : d);
+                  case pDouble -> f.setDouble(this, d == null ? annotation.pDoubleNullValue() : d);
                   case Double -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -456,7 +459,7 @@ public interface ExternalizableBean extends Externalizable {
                Float d = readFloat(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pFloat -> f.setFloat(this, d == null ? config._annotations[j].pFloatNullValue() : d);
+                  case pFloat -> f.setFloat(this, d == null ? annotation.pFloatNullValue() : d);
                   case Float -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -467,7 +470,7 @@ public interface ExternalizableBean extends Externalizable {
                Long d = readLong(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pLong -> f.setLong(this, d == null ? config._annotations[j].pLongNullValue() : d);
+                  case pLong -> f.setLong(this, d == null ? annotation.pLongNullValue() : d);
                   case Long -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -478,7 +481,7 @@ public interface ExternalizableBean extends Externalizable {
                Short d = readShort(in);
                if ( f != null ) {
                   switch ( configuredFt ) {
-                  case pShort -> f.setShort(this, d == null ? config._annotations[j].pShortNullValue() : d);
+                  case pShort -> f.setShort(this, d == null ? annotation.pShortNullValue() : d);
                   case Short -> f.set(this, d);
                   default -> throw new IllegalStateException();
                   }
@@ -1419,6 +1422,11 @@ public interface ExternalizableBean extends Externalizable {
        * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
        */
       short pShortNullValue() default 0;
+
+      /**
+       * Defines whether boxed fields are set to null whenever primitive input matches the pTypeNullValue
+       */
+      boolean sparseBoxed() default true;
 
       /**
        * Aka index. Must be unique. Convention is to start from 1. To guarantee compatibility between revisions of a bean,
