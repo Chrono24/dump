@@ -225,26 +225,28 @@ public interface ExternalizableBean extends Externalizable {
                j++;
             }
 
-            FieldType ft;
+            FieldType inputFt, configuredFt;
             FieldAccessor f = null;
             Class defaultType = null;
             if ( (fieldIndexes[j] & 0xff) == fieldIndex ) {
-               final FieldType fft = ft = fieldTypes[j];
+               final FieldType fft = configuredFt = inputFt = fieldTypes[j];
                f = fieldAccessors[j];
                defaultType = defaultTypes[j];
-               if ( fieldTypeId != ft._id ) {
-                  if ( fieldTypeId == FieldType.EnumOld._id && ft._id == FieldType.Enum._id ) {
-                     ft = FieldType.EnumOld;
-                  } else if ( fieldTypeId == FieldType.EnumSetOld._id && ft._id == FieldType.EnumSet._id ) {
-                     ft = FieldType.EnumSetOld;
-                  } else if ( fieldTypeId == FieldType.SetOfStrings._id && ft._id == FieldType.Set._id ) {
-                     ft = FieldType.SetOfStrings;
-                  } else if ( fieldTypeId == FieldType.ListOfStrings._id && ft._id == FieldType.List._id ) {
-                     ft = FieldType.ListOfStrings;
-                  } else if ( fieldTypeId == FieldType.Set._id && ft._id == FieldType.SetOfStrings._id ) {
-                     ft = FieldType.Set;
-                  } else if ( fieldTypeId == FieldType.List._id && ft._id == FieldType.ListOfStrings._id ) {
-                     ft = FieldType.List;
+               if ( fieldTypeId != inputFt._id ) {
+                  if ( fieldTypeId == FieldType.EnumOld._id && inputFt._id == FieldType.Enum._id ) {
+                     inputFt = FieldType.EnumOld;
+                  } else if ( fieldTypeId == FieldType.EnumSetOld._id && inputFt._id == FieldType.EnumSet._id ) {
+                     inputFt = FieldType.EnumSetOld;
+                  } else if ( fieldTypeId == FieldType.SetOfStrings._id && inputFt._id == FieldType.Set._id ) {
+                     inputFt = FieldType.SetOfStrings;
+                  } else if ( fieldTypeId == FieldType.ListOfStrings._id && inputFt._id == FieldType.List._id ) {
+                     inputFt = FieldType.ListOfStrings;
+                  } else if ( fieldTypeId == FieldType.Set._id && inputFt._id == FieldType.SetOfStrings._id ) {
+                     inputFt = FieldType.Set;
+                  } else if ( fieldTypeId == FieldType.List._id && inputFt._id == FieldType.ListOfStrings._id ) {
+                     inputFt = FieldType.List;
+                  } else if ( isCompatible(FieldType.forId(fieldTypeId), fft) ) {
+                     inputFt = FieldType.forId(fieldTypeId);
                   } else if ( Boolean.TRUE.equals(CLASS_CHANGED_INCOMPATIBLY.computeIfAbsent(getClass(), clazz -> {
                      LoggerFactory.getLogger(clazz).error("The field type of index " + fieldIndex + //
                            " in " + clazz.getSimpleName() + //
@@ -255,17 +257,17 @@ public interface ExternalizableBean extends Externalizable {
                      return Boolean.TRUE;
                   })) ) {
                      // read it without exception, but ignore the data
-                     ft = FieldType.forId(fieldTypeId);
+                     inputFt = FieldType.forId(fieldTypeId);
                      f = null;
                   }
                }
             } else { // unknown field
-               ft = FieldType.forId(fieldTypeId);
+               configuredFt = inputFt = FieldType.forId(fieldTypeId);
             }
 
-            Objects.requireNonNull(ft, "Invalid field type " + (fieldTypeId & 0xff) + " for field index " + fieldIndex);
+            Objects.requireNonNull(inputFt, "Invalid field type " + (fieldTypeId & 0xff) + " for field index " + fieldIndex);
 
-            if ( ft.isLengthDynamic() ) {
+            if ( inputFt.isLengthDynamic() ) {
                int len = in.readInt();
                if ( f == null ) { // unknown field, skip it
                   skipFully(in, len);
@@ -273,60 +275,92 @@ public interface ExternalizableBean extends Externalizable {
                }
             }
 
-            switch ( ft ) {
+            switch ( inputFt ) {
             case pInt: {
                int d = in.readInt();
                if ( f != null ) {
-                  f.setInt(this, d);
+                  switch ( configuredFt ) {
+                  case pInt -> f.setInt(this, d);
+                  case Integer -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pBoolean: {
                boolean d = in.readBoolean();
                if ( f != null ) {
-                  f.setBoolean(this, d);
+                  switch ( configuredFt ) {
+                  case pBoolean -> f.setBoolean(this, d);
+                  case Boolean -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pByte: {
                byte d = in.readByte();
                if ( f != null ) {
-                  f.setByte(this, d);
+                  switch ( configuredFt ) {
+                  case pByte -> f.setByte(this, d);
+                  case Byte -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pChar: {
                char d = in.readChar();
                if ( f != null ) {
-                  f.setChar(this, d);
+                  switch ( configuredFt ) {
+                  case pChar -> f.setChar(this, d);
+                  case Character -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pDouble: {
                double d = in.readDouble();
                if ( f != null ) {
-                  f.setDouble(this, d);
+                  switch ( configuredFt ) {
+                  case pDouble -> f.setDouble(this, d);
+                  case Double -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pFloat: {
                float d = in.readFloat();
                if ( f != null ) {
-                  f.setFloat(this, d);
+                  switch ( configuredFt ) {
+                  case pFloat -> f.setFloat(this, d);
+                  case Float -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pLong: {
                long d = in.readLong();
                if ( f != null ) {
-                  f.setLong(this, d);
+                  switch ( configuredFt ) {
+                  case pLong -> f.setLong(this, d);
+                  case Long -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case pShort: {
                short d = in.readShort();
                if ( f != null ) {
-                  f.setShort(this, d);
+                  switch ( configuredFt ) {
+                  case pShort -> f.setShort(this, d);
+                  case Short -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
@@ -365,56 +399,89 @@ public interface ExternalizableBean extends Externalizable {
             case Integer: {
                Integer d = readInteger(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pInt -> f.setInt(this, d == null ? config._annotations[j].pIntNullValue() : d);
+                  case Integer -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Boolean: {
                Boolean d = readBoolean(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pBoolean -> //noinspection SimplifiableConditionalExpression
+                        f.setBoolean(this, d == null ? config._annotations[j].pBooleanNullValue() : false);
+                  case Boolean -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Byte: {
                Byte d = readByte(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pByte -> f.setByte(this, d == null ? config._annotations[j].pByteNullValue() : d);
+                  case Byte -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Character: {
                Character d = readCharacter(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pChar -> f.setChar(this, d == null ? config._annotations[j].pCharNullValue() : d);
+                  case Character -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Double: {
                Double d = readDouble(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pDouble -> f.setDouble(this, d == null ? config._annotations[j].pDoubleNullValue() : d);
+                  case Double -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Float: {
                Float d = readFloat(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pFloat -> f.setFloat(this, d == null ? config._annotations[j].pFloatNullValue() : d);
+                  case Float -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Long: {
                Long d = readLong(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pLong -> f.setLong(this, d == null ? config._annotations[j].pLongNullValue() : d);
+                  case Long -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
             case Short: {
                Short d = readShort(in);
                if ( f != null ) {
-                  f.set(this, d);
+                  switch ( configuredFt ) {
+                  case pShort -> f.setShort(this, d == null ? config._annotations[j].pShortNullValue() : d);
+                  case Short -> f.set(this, d);
+                  default -> throw new IllegalStateException();
+                  }
                }
                break;
             }
@@ -1216,6 +1283,44 @@ public interface ExternalizableBean extends Externalizable {
       }
    }
 
+   private boolean isCompatible( FieldType inputType, FieldType configuredType ) {
+      return switch ( inputType ) {
+         case Boolean, pBoolean -> switch ( configuredType ) {
+            case Boolean, pBoolean -> true;
+            default -> false;
+         };
+         case Character, pChar -> switch ( configuredType ) {
+            case Character, pChar -> true;
+            default -> false;
+         };
+         case Byte, pByte -> switch ( configuredType ) {
+            case Byte, pByte -> true;
+            default -> false;
+         };
+         case Short, pShort -> switch ( configuredType ) {
+            case Short, pShort -> true;
+            default -> false;
+         };
+         case Integer, pInt -> switch ( configuredType ) {
+            case Integer, pInt -> true;
+            default -> false;
+         };
+         case Long, pLong -> switch ( configuredType ) {
+            case Long, pLong -> true;
+            default -> false;
+         };
+         case Float, pFloat -> switch ( configuredType ) {
+            case Float, pFloat -> true;
+            default -> false;
+         };
+         case Double, pDouble -> switch ( configuredType ) {
+            case Double, pDouble -> true;
+            default -> false;
+         };
+         default -> false;
+      };
+   }
+
    /**
     * By adding this annotation to a class implementing ExternalizableBean, you can make certain, that the byte[]
     * created by externalizing has a size where <code>size%sizeModulo==0</code>, i.e. it is divisible by
@@ -1274,6 +1379,46 @@ public interface ExternalizableBean extends Externalizable {
        * In that case setting this value improves both space requirement and performance.
        */
       Class defaultType() default System.class; // System.class is just a placeholder for nothing, in order to make this argument optional
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      boolean pBooleanNullValue() default false;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      byte pByteNullValue() default 0;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      char pCharNullValue() default 0;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      double pDoubleNullValue() default 0.0;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      float pFloatNullValue() default 0.0f;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      int pIntNullValue() default 0;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      long pLongNullValue() default 0L;
+
+      /**
+       * The value for primitive fields being migrated from boxed values, in case the latter reads null from the input.
+       */
+      short pShortNullValue() default 0;
 
       /**
        * Aka index. Must be unique. Convention is to start from 1. To guarantee compatibility between revisions of a bean,
