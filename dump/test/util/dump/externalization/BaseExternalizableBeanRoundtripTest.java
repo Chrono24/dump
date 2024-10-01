@@ -28,8 +28,12 @@ public abstract class BaseExternalizableBeanRoundtripTest<Bean extends Externali
 
    @SuppressWarnings("unchecked")
    protected void whenBeanIsExternalizedAndRead() {
+      whenBeanIsExternalizedAndRead((Class<Bean>)_beanToWrite.getClass());
+   }
+
+   protected void whenBeanIsExternalizedAndRead( Class<? extends Bean> beanClass ) {
       byte[] bytes = SingleTypeObjectOutputStream.writeSingleInstance(_beanToWrite);
-      _beanThatWasRead = SingleTypeObjectInputStream.readSingleInstance((Class<Bean>)_beanToWrite.getClass(), bytes);
+      _beanThatWasRead = SingleTypeObjectInputStream.readSingleInstance(beanClass, bytes);
    }
 
 }
