@@ -553,7 +553,7 @@ class ExternalizationHelper {
       if ( isNotNull ) {
          s = DumpUtils.readUTF(in);
       }
-      return StringDeduplicator.deduplicate(s);
+      return StringDeduplicator.deduplicateEmpty(s);
    }
 
    static String[] readStringArray( ObjectInput in ) throws IOException {
