@@ -27,6 +27,9 @@
                <encoding>UTF-8</encoding>
                <source>17</source>
                <target>17</target>
+               <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.foreign</arg>
+               </compilerArgs>
             </configuration>
          </plugin>
          <plugin>
@@ -45,7 +48,10 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <version>3.3.1</version>
             <configuration>
-               <argLine>--add-opens java.base/java.util=ALL-UNNAMED</argLine>
+               <argLine>
+                  --add-opens java.base/java.util=ALL-UNNAMED
+                  --add-modules=jdk.incubator.foreign
+               </argLine>
             </configuration>
          </plugin>
       </plugins>
