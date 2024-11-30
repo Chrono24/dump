@@ -28,8 +28,8 @@ public class MethodFieldAccessor
       Type[] setterActualTypeArguments = ((ParameterizedType)setterTypes).getActualTypeArguments();
       _genericTypes = new Class[actualTypeArguments.length];
       for (int i = 0, length = actualTypeArguments.length; i < length; i++) {
-        _genericTypes[i] = (Class)actualTypeArguments[i];
-        if (!_genericTypes[i].equals( setterActualTypeArguments[i] )) { throw new RuntimeException(
+        _genericTypes[i] = FieldAccessor.getRawType(actualTypeArguments[i]);
+        if ( !_genericTypes[i].equals(FieldAccessor.getRawType(setterActualTypeArguments[i])) ) { throw new RuntimeException(
                                                                                                     "getter/setter pair " +
                                                                                                         getter.getName() +
                                                                                                         " must have the same generic types. " +
