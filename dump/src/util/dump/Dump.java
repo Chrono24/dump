@@ -90,10 +90,12 @@ public class Dump<E> implements DumpInput<E> {
    public static final int DEFAULT_CACHE_SIZE               = 10000;
    public static final int DEFAULT_SORT_MAX_ITEMS_IN_MEMORY = 10000;
 
-   public static final DumpAccessFlag[] DEFAULT_MODE   = EnumSet.complementOf(EnumSet.of(DumpAccessFlag.shared))
+   public static final  DumpAccessFlag[]        DEFAULT_MODE    = EnumSet.complementOf(EnumSet.of(DumpAccessFlag.shared))
          .toArray(new DumpAccessFlag[DumpAccessFlag.values().length - 1]);
-   public static final DumpAccessFlag[] SHARED_MODE    = EnumSet.allOf(DumpAccessFlag.class).toArray(new DumpAccessFlag[DumpAccessFlag.values().length]);
-   public static final DumpAccessFlag[] READ_ONLY_MODE = new DumpAccessFlag[] { DumpAccessFlag.indices, DumpAccessFlag.read, DumpAccessFlag.shared };
+   public static final  DumpAccessFlag[]        SHARED_MODE     = EnumSet.allOf(DumpAccessFlag.class).toArray(DumpAccessFlag[]::new);
+   private static final EnumSet<DumpAccessFlag> READ_ONLY_FLAGS = EnumSet.of(DumpAccessFlag.read, DumpAccessFlag.indices, DumpAccessFlag.shared);
+   public static final  DumpAccessFlag[]        READ_ONLY_MODE  = READ_ONLY_FLAGS.toArray(DumpAccessFlag[]::new);
+   private static final EnumSet<DumpAccessFlag> WRITE_FLAGS     = EnumSet.complementOf(Dump.READ_ONLY_FLAGS);
 
    /** if the number of deleted elements exceeds the value of PRUNE_THRESHOLD, the dump is pruned during construction */
    public static final int PRUNE_THRESHOLD = 25000;
@@ -1204,9 +1206,8 @@ public class Dump<E> implements DumpInput<E> {
 
    private boolean isReadonly() {
       // are there any modes except read/indices
-      EnumSet<DumpAccessFlag> writeModes = EnumSet.complementOf(EnumSet.of(DumpAccessFlag.read, DumpAccessFlag.indices));
-      for ( DumpAccessFlag writeMode : writeModes ) {
-         if ( _mode.contains(writeMode) ) {
+      for ( DumpAccessFlag writeFlag : WRITE_FLAGS ) {
+         if ( _mode.contains(writeFlag) ) {
             return false;
          }
       }
