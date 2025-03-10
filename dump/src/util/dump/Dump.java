@@ -953,6 +953,9 @@ public class Dump<E> implements DumpInput<E> {
       if ( !"true".equals(System.getProperty("dump.prune.enabled", "true")) ) {
          return false;
       }
+      if ( isReadonly() ) {
+         return false;
+      }
       return _deletedPositions.size() > PRUNE_THRESHOLD;
    }
 
