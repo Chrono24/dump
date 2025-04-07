@@ -21,6 +21,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static gnu.trove.impl.Constants.DEFAULT_CAPACITY;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
@@ -177,7 +178,7 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
    @Override
    public TLongList getAllPositions() {
       synchronized ( _dump ) {
-         TLongList pos = new TLongArrayList((int)(_lookupFileLength / (8 + (_fieldIsLong ? 8 : 4))));
+         TLongList pos = new TLongArrayList((int)(_lookupFileLength / (8 + (_fieldIsLong ? 8 : 4))), -1L);
 
          if ( _fieldIsInt || _fieldIsLong ) {
             DataInputStream in = null;
@@ -337,7 +338,7 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
     */
    public Iterable<E> rangeLookup( long lowerKey, long upperKey ) {
       synchronized ( _dump ) {
-         TLongList pos = new TLongArrayList();
+         TLongList pos = new TLongArrayList(DEFAULT_CAPACITY, -1L);
          _overflowIndex._lookupLong.forEachEntry(( key, positions ) -> {
             if ( key >= lowerKey && key < upperKey )
                pos.addAll(positions);
@@ -395,7 +396,8 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
             return cachedPositions;
          }
 
-         TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
+         TLongList pos = new TLongArrayList(DEFAULT_CAPACITY, -1L);
+         pos.add(_overflowIndex.getPositions(key));
 
          int keyLength = 4 + 8; // in bytes
 
@@ -430,7 +432,8 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
             return cachedPositions;
          }
 
-         TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
+         TLongList pos = new TLongArrayList(DEFAULT_CAPACITY, -1L);
+         pos.add(_overflowIndex.getPositions(key));
 
          int keyLength = 8 + 8; // in bytes
 
@@ -477,7 +480,8 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
 
          TLongList keyPositions = getObjectKeyPositions(key);
 
-         TLongList positions = new TLongArrayList(_overflowIndex.getPositions(key));
+         TLongList positions = new TLongArrayList(DEFAULT_CAPACITY, -1L);
+         positions.add(_overflowIndex.getPositions(key));
          for ( TLongIterator iterator = keyPositions.iterator(); iterator.hasNext(); ) {
             long pos = iterator.next();
             if ( _fieldIsExternalizable ) {
@@ -916,7 +920,7 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
    }
 
    private TLongList getObjectKeyPositions( Object key ) {
-      TLongList keyPositions = new TLongArrayList();
+      TLongList keyPositions = new TLongArrayList(DEFAULT_CAPACITY, -1L);
       int keyLength = 4 + 8; // in bytes
 
       int keyHashCode = key.hashCode();

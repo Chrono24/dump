@@ -180,7 +180,7 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
          for ( Positions positions : c ) {
             numPos += positions.size();
          }
-         TLongList pos = new TLongArrayList(numPos);
+         TLongList pos = new TLongArrayList(numPos, -1L);
          for ( Positions p : c ) {
             ensureSorting(p);
             for ( int i = 0, length = p.size(); i < length; i++ ) {
