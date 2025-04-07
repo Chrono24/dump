@@ -153,15 +153,21 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    }
 
    public int[] getAllIntKeys() {
-      return _lookupInt.keys();
+      synchronized ( _dump ) {
+         return _lookupInt.keys();
+      }
    }
 
    public long[] getAllLongKeys() {
-      return _lookupLong.keys();
+      synchronized ( _dump ) {
+         return _lookupLong.keys();
+      }
    }
 
    public Object[] getAllObjectKeys() {
-      return _lookupObject.keys();
+      synchronized ( _dump ) {
+         return _lookupObject.keys();
+      }
    }
 
    @Override
