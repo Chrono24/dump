@@ -174,7 +174,7 @@ public class UniqueIndex<E> extends DumpIndex<E> {
    public TLongList getAllPositions() {
       synchronized ( _dump ) {
          TLongCollection c = _fieldIsInt ? _lookupInt.valueCollection() : (_fieldIsLong ? _lookupLong.valueCollection() : _lookupObject.valueCollection());
-         TLongList pos = new TLongArrayList(c.size(), 10000);
+         TLongList pos = new TLongArrayList(c.size(), -1L);
          for ( TLongIterator iterator = c.iterator(); iterator.hasNext(); ) {
             long p = iterator.next();
             if ( !_dump._deletedPositions.contains(p) ) {
