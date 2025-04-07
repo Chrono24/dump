@@ -166,16 +166,18 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
    @Override
    public TLongList getAllPositions() {
-      TLongList pos = new TLongArrayList(100000, 10000);
-      TLongCollection c = _fieldIsInt ? _lookupInt.valueCollection() : (_fieldIsLong ? _lookupLong.valueCollection() : _lookupObject.valueCollection());
-      for ( TLongIterator iterator = c.iterator(); iterator.hasNext(); ) {
-         long p = iterator.next();
-         if ( !_dump._deletedPositions.contains(p) ) {
-            pos.add(p);
+      synchronized ( _dump ) {
+         TLongCollection c = _fieldIsInt ? _lookupInt.valueCollection() : (_fieldIsLong ? _lookupLong.valueCollection() : _lookupObject.valueCollection());
+         TLongList pos = new TLongArrayList(c.size(), 10000);
+         for ( TLongIterator iterator = c.iterator(); iterator.hasNext(); ) {
+            long p = iterator.next();
+            if ( !_dump._deletedPositions.contains(p) ) {
+               pos.add(p);
+            }
          }
+         pos.sort();
+         return pos;
       }
-      pos.sort();
-      return pos;
    }
 
    public Object getKey( E o ) {
@@ -190,14 +192,16 @@ public class UniqueIndex<E> extends DumpIndex<E> {
 
    @Override
    public int getNumKeys() {
-      if ( _lookupObject != null ) {
-         return _lookupObject.size();
-      }
-      if ( _lookupLong != null ) {
-         return _lookupLong.size();
-      }
-      if ( _lookupInt != null ) {
-         return _lookupInt.size();
+      synchronized ( _dump ) {
+         if ( _lookupObject != null ) {
+            return _lookupObject.size();
+         }
+         if ( _lookupLong != null ) {
+            return _lookupLong.size();
+         }
+         if ( _lookupInt != null ) {
+            return _lookupInt.size();
+         }
       }
       throw new IllegalStateException("weird, all lookup maps are null");
    }

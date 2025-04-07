@@ -176,132 +176,135 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
 
    @Override
    public TLongList getAllPositions() {
-      TLongList pos = new TLongArrayList((int)(_lookupFileLength / (8 + (_fieldIsLong ? 8 : 4))));
+      synchronized ( _dump ) {
+         TLongList pos = new TLongArrayList((int)(_lookupFileLength / (8 + (_fieldIsLong ? 8 : 4))));
 
-      if ( _fieldIsInt || _fieldIsLong ) {
-         DataInputStream in = null;
-         try {
-            in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
-            while ( true ) {
-               if ( _fieldIsLong ) {
-                  in.readLong();
-               } else {
-                  in.readInt();
+         if ( _fieldIsInt || _fieldIsLong ) {
+            DataInputStream in = null;
+            try {
+               in = new DataInputStream(new BufferedInputStream(new FileInputStream(getLookupFile())));
+               while ( true ) {
+                  if ( _fieldIsLong ) {
+                     in.readLong();
+                  } else {
+                     in.readInt();
+                  }
+                  long p = in.readLong();
+                  if ( !_dump._deletedPositions.contains(p) ) {
+                     pos.add(p);
+                  }
                }
-               long p = in.readLong();
-               if ( !_dump._deletedPositions.contains(p) ) {
-                  pos.add(p);
+            }
+            catch ( EOFException e ) {
+               // ignore, since all is good
+            }
+            catch ( Exception e ) {
+               throw new RuntimeException("Failed to read dump positions", e);
+            }
+            finally {
+               if ( in != null ) {
+                  try {
+                     in.close();
+                  }
+                  catch ( IOException e ) {
+                     LOG.error("Failed to close inputstream.");
+                  }
+               }
+            }
+         } else if ( _fieldIsExternalizable ) {
+            for ( ExternalizableKeyPosition kp : _externalizableKeyDump ) {
+               if ( !_dump._deletedPositions.contains(kp._pos) ) {
+                  pos.add(kp._pos);
+               }
+            }
+         } else if ( _fieldIsString ) {
+            for ( StringKeyPosition kp : _stringKeyDump ) {
+               if ( !_dump._deletedPositions.contains(kp._pos) ) {
+                  pos.add(kp._pos);
                }
             }
          }
-         catch ( EOFException e ) {
-            // ignore, since all is good
-         }
-         catch ( Exception e ) {
-            throw new RuntimeException("Failed to read dump positions", e);
-         }
-         finally {
-            if ( in != null ) {
-               try {
-                  in.close();
-               }
-               catch ( IOException e ) {
-                  LOG.error("Failed to close inputstream.");
-               }
-            }
-         }
-      } else if ( _fieldIsExternalizable ) {
-         for ( ExternalizableKeyPosition kp : _externalizableKeyDump ) {
-            if ( !_dump._deletedPositions.contains(kp._pos) ) {
-               pos.add(kp._pos);
-            }
-         }
-      } else if ( _fieldIsString ) {
-         for ( StringKeyPosition kp : _stringKeyDump ) {
-            if ( !_dump._deletedPositions.contains(kp._pos) ) {
-               pos.add(kp._pos);
-            }
-         }
+         pos.addAll(_overflowIndex.getAllPositions());
+         // TODO sort since we added the positions from groupIndex?
+         return pos;
       }
-      pos.addAll(_overflowIndex.getAllPositions());
-      // TODO sort since we added the positions from groupIndex?
-      return pos;
    }
 
    @Override
    public int getNumKeys() {
-
-      boolean first = true;
-      int numKeys = 0;
-      if ( _fieldIsInt ) {
-         int before = 0;
-         for ( IntKeyPosition keyPos : _intKeyDump ) {
-            if ( _dump._deletedPositions.contains(keyPos._pos) ) {
-               continue;
-            }
-
-            int key = keyPos._key;
-            if ( first || key != before ) {
-               first = false;
-               if ( !_overflowIndex.contains(key) ) {
-                  numKeys++;
+      synchronized ( _dump ) {
+         boolean first = true;
+         int numKeys = 0;
+         if ( _fieldIsInt ) {
+            int before = 0;
+            for ( IntKeyPosition keyPos : _intKeyDump ) {
+               if ( _dump._deletedPositions.contains(keyPos._pos) ) {
+                  continue;
                }
-            }
-            before = key;
-         }
-      } else if ( _fieldIsLong ) {
-         long before = 0;
-         for ( LongKeyPosition keyPos : _longKeyDump ) {
-            if ( _dump._deletedPositions.contains(keyPos._pos) ) {
-               continue;
-            }
 
-            long key = keyPos._key;
-            if ( first || key != before ) {
-               first = false;
-               if ( !_overflowIndex.contains(key) ) {
-                  numKeys++;
+               int key = keyPos._key;
+               if ( first || key != before ) {
+                  first = false;
+                  if ( !_overflowIndex.contains(key) ) {
+                     numKeys++;
+                  }
                }
+               before = key;
             }
-            before = key;
+         } else if ( _fieldIsLong ) {
+            long before = 0;
+            for ( LongKeyPosition keyPos : _longKeyDump ) {
+               if ( _dump._deletedPositions.contains(keyPos._pos) ) {
+                  continue;
+               }
+
+               long key = keyPos._key;
+               if ( first || key != before ) {
+                  first = false;
+                  if ( !_overflowIndex.contains(key) ) {
+                     numKeys++;
+                  }
+               }
+               before = key;
+            }
+         } else {
+            if ( !_fieldIsExternalizable && !_fieldIsString ) {
+               throw new IllegalStateException("must not happen");
+            }
+
+            int before = 0;
+            Set<Object> set = new HashSet<>();
+            for ( IntKeyPosition keyPos : _intKeyDump ) {
+
+               int hashCode = keyPos._key;
+               if ( first || hashCode != before ) {
+                  numKeys += countDistinctObjects(set);
+                  first = false;
+               }
+
+               Object objectKey = null;
+               long objectPos = -1;
+               if ( _fieldIsString ) {
+                  StringKeyPosition object = _stringKeyDump.get(keyPos._pos);
+                  objectPos = object._pos;
+                  objectKey = object._key;
+               } else {
+                  ExternalizableKeyPosition object = _externalizableKeyDump.get(keyPos._pos);
+                  objectPos = object._pos;
+                  objectKey = _externalizableKeyDump.get(keyPos._pos)._key;
+               }
+               if ( _dump._deletedPositions.contains(objectPos) ) {
+                  continue;
+               }
+               set.add(objectKey);
+               before = hashCode;
+            }
+
+            numKeys += countDistinctObjects(set);
          }
-      } else {
-         if ( !_fieldIsExternalizable && !_fieldIsString ) {
-            throw new IllegalStateException("must not happen");
-         }
 
-         int before = 0;
-         Set<Object> set = new HashSet<>();
-         for ( IntKeyPosition keyPos : _intKeyDump ) {
-
-            int hashCode = keyPos._key;
-            if ( first || hashCode != before ) {
-               numKeys += countDistinctObjects(set);
-               first = false;
-            }
-
-            Object objectKey = null;
-            long objectPos = -1;
-            if ( _fieldIsString ) {
-               StringKeyPosition object = _stringKeyDump.get(keyPos._pos);
-               objectPos = object._pos;
-               objectKey = object._key;
-            } else {
-               ExternalizableKeyPosition object = _externalizableKeyDump.get(keyPos._pos);
-               objectPos = object._pos;
-               objectKey = _externalizableKeyDump.get(keyPos._pos)._key;
-            }
-            if ( _dump._deletedPositions.contains(objectPos) ) {
-               continue;
-            }
-            set.add(objectKey);
-            before = hashCode;
-         }
-
-         numKeys += countDistinctObjects(set);
+         return numKeys + _overflowIndex.getNumKeys();
       }
-
-      return numKeys + _overflowIndex.getNumKeys();
    }
 
    @Override
@@ -381,69 +384,73 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
    }
 
    protected long[] getPositions( int key ) {
-      if ( !(_fieldIsInt || _fieldIsExternalizable || _fieldIsString) ) {
-         throw new IllegalArgumentException(
-            "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate lookup(.) method.");
-      }
+      synchronized ( _dump ) {
+         if ( !(_fieldIsInt || _fieldIsExternalizable || _fieldIsString) ) {
+            throw new IllegalArgumentException(
+                  "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate lookup(.) method.");
+         }
 
-      long[] cachedPositions = getPositionsFromCache(key);
-      if ( cachedPositions != null ) {
-         return cachedPositions;
-      }
+         long[] cachedPositions = getPositionsFromCache(key);
+         if ( cachedPositions != null ) {
+            return cachedPositions;
+         }
 
-      TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
+         TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
 
-      int keyLength = 4 + 8; // in bytes
+         int keyLength = 4 + 8; // in bytes
 
-      long firstIndex = findIntKey(key, keyLength);
-      if ( firstIndex >= 0 ) {
-         for ( long p = firstIndex * keyLength; p < _lookupFileLength; p += keyLength ) {
-            IntKeyPosition ip = _intKeyDump.get(p);
-            if ( ip._key != key ) {
-               break;
-            }
-            if ( ip._pos >= 0 && !_dump._deletedPositions.contains(ip._pos) ) {
-               pos.add(ip._pos);
+         long firstIndex = findIntKey(key, keyLength);
+         if ( firstIndex >= 0 ) {
+            for ( long p = firstIndex * keyLength; p < _lookupFileLength; p += keyLength ) {
+               IntKeyPosition ip = _intKeyDump.get(p);
+               if ( ip._key != key ) {
+                  break;
+               }
+               if ( ip._pos >= 0 && !_dump._deletedPositions.contains(ip._pos) ) {
+                  pos.add(ip._pos);
+               }
             }
          }
-      }
 
-      long[] positions = pos.toArray();
-      putPositionsIntoCache(key, positions);
-      return positions;
+         long[] positions = pos.toArray();
+         putPositionsIntoCache(key, positions);
+         return positions;
+      }
    }
 
    protected long[] getPositions( long key ) {
-      if ( !_fieldIsLong ) {
-         throw new IllegalArgumentException(
-            "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate lookup(.) method.");
-      }
+      synchronized ( _dump ) {
+         if ( !_fieldIsLong ) {
+            throw new IllegalArgumentException(
+                  "The type of the used key class of this index is " + _fieldAccessor.getType() + ". Please use the appropriate lookup(.) method.");
+         }
 
-      long[] cachedPositions = getPositionsFromCache(key);
-      if ( cachedPositions != null ) {
-         return cachedPositions;
-      }
+         long[] cachedPositions = getPositionsFromCache(key);
+         if ( cachedPositions != null ) {
+            return cachedPositions;
+         }
 
-      TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
+         TLongList pos = new TLongArrayList(_overflowIndex.getPositions(key));
 
-      int keyLength = 8 + 8; // in bytes
+         int keyLength = 8 + 8; // in bytes
 
-      long firstIndex = findLongKey(key, keyLength);
-      if ( firstIndex >= 0 ) {
-         for ( long p = firstIndex * keyLength; p < _lookupFileLength; p += keyLength ) {
-            LongKeyPosition ip = _longKeyDump.get(p);
-            if ( ip._key != key ) {
-               break;
-            }
-            if ( ip._pos >= 0 && !_dump._deletedPositions.contains(ip._pos) ) {
-               pos.add(ip._pos);
+         long firstIndex = findLongKey(key, keyLength);
+         if ( firstIndex >= 0 ) {
+            for ( long p = firstIndex * keyLength; p < _lookupFileLength; p += keyLength ) {
+               LongKeyPosition ip = _longKeyDump.get(p);
+               if ( ip._key != key ) {
+                  break;
+               }
+               if ( ip._pos >= 0 && !_dump._deletedPositions.contains(ip._pos) ) {
+                  pos.add(ip._pos);
+               }
             }
          }
-      }
 
-      long[] positions = pos.toArray();
-      putPositionsIntoCache(key, positions);
-      return positions;
+         long[] positions = pos.toArray();
+         putPositionsIntoCache(key, positions);
+         return positions;
+      }
    }
 
    protected long[] getPositions( Object key ) {
@@ -462,35 +469,37 @@ public class InfiniteGroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex
             + ". You tried to using the index with a key of type " + key.getClass() + ".");
       }
 
-      long[] cachedPositions = getPositionsFromCache(key);
-      if ( cachedPositions != null ) {
-         return cachedPositions;
-      }
+      synchronized ( _dump ) {
+         long[] cachedPositions = getPositionsFromCache(key);
+         if ( cachedPositions != null ) {
+            return cachedPositions;
+         }
 
-      TLongList keyPositions = getObjectKeyPositions(key);
+         TLongList keyPositions = getObjectKeyPositions(key);
 
-      TLongList positions = new TLongArrayList(_overflowIndex.getPositions(key));
-      for ( TLongIterator iterator = keyPositions.iterator(); iterator.hasNext(); ) {
-         long pos = iterator.next();
-         if ( _fieldIsExternalizable ) {
-            ExternalizableKeyPosition keyPosition = _externalizableKeyDump.get(pos);
-            long kp = keyPosition._pos;
-            if ( kp >= 0 && keyPosition._key.equals(key) && !_dump._deletedPositions.contains(kp) ) {
-               positions.add(kp);
-            }
-         } else if ( _fieldIsString ) {
-            StringKeyPosition keyPosition = _stringKeyDump.get(pos);
-            long kp = keyPosition._pos;
-            if ( kp >= 0 && keyPosition._key.equals(key) && !_dump._deletedPositions.contains(kp) ) {
-               positions.add(kp);
+         TLongList positions = new TLongArrayList(_overflowIndex.getPositions(key));
+         for ( TLongIterator iterator = keyPositions.iterator(); iterator.hasNext(); ) {
+            long pos = iterator.next();
+            if ( _fieldIsExternalizable ) {
+               ExternalizableKeyPosition keyPosition = _externalizableKeyDump.get(pos);
+               long kp = keyPosition._pos;
+               if ( kp >= 0 && keyPosition._key.equals(key) && !_dump._deletedPositions.contains(kp) ) {
+                  positions.add(kp);
+               }
+            } else if ( _fieldIsString ) {
+               StringKeyPosition keyPosition = _stringKeyDump.get(pos);
+               long kp = keyPosition._pos;
+               if ( kp >= 0 && keyPosition._key.equals(key) && !_dump._deletedPositions.contains(kp) ) {
+                  positions.add(kp);
+               }
             }
          }
-      }
 
-      positions.sort();
-      long[] posArray = positions.toArray();
-      putPositionsIntoCache(key, posArray);
-      return posArray;
+         positions.sort();
+         long[] posArray = positions.toArray();
+         putPositionsIntoCache(key, posArray);
+         return posArray;
+      }
    }
 
    protected long[] getPositionsFromCache( Object key ) {
