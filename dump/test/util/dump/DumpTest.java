@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.security.AccessControlException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.SortedSet;
@@ -47,7 +46,7 @@ public class DumpTest {
       }
    }
 
-   @Test(expected = AccessControlException.class)
+   @Test(expected = IllegalStateException.class)
    public void testAddIndexWithoutAccessRight() throws Exception {
       File dumpFile = new File("DumpTest.dmp");
       try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add, DumpAccessFlag.delete)) {
@@ -55,6 +54,17 @@ public class DumpTest {
          dump.delete(0);
          dump.add(new Bean(1));
          new UniqueIndex<>(dump, "_id");
+      }
+   }
+
+   @Test(expected = IllegalStateException.class)
+   public void testAddWithoutAccessRight_FileExistsDueToPreviousWriteAccess() throws Exception {
+      File dumpFile = new File("DumpTest.dmp");
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add)) {
+         // do nothing, just initialize the file
+      }
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.read)) {
+         dump.add(new Bean(1));
       }
    }
 
@@ -66,18 +76,7 @@ public class DumpTest {
       }
    }
 
-   @Test(expected = AccessControlException.class)
-   public void testAddWithoutAccessRight_FileExistsDueToPreviousWriteAccess() throws Exception {
-      File dumpFile = new File("DumpTest.dmp");
-      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add)) {
-         // do nothing, just initialize the file
-      }
-      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.read)) {
-         dump.add(new Bean(1));
-      }
-   }
-
-   @Test(expected = AccessControlException.class)
+   @Test(expected = IllegalStateException.class)
    public void testDeleteWithoutAccessRight() throws Exception {
       File dumpFile = new File("DumpTest.dmp");
       try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add)) {
@@ -99,7 +98,7 @@ public class DumpTest {
          dump.get(0);
          Assert.fail();
       }
-      catch ( AccessControlException e ) {
+      catch ( IllegalStateException e ) {
       }
       finally {
          dump.close();
@@ -336,7 +335,7 @@ public class DumpTest {
       }
    }
 
-   @Test(expected = AccessControlException.class)
+   @Test(expected = IllegalStateException.class)
    public void testUpdateInPlaceWithoutAccessRight() throws Exception {
       File dumpFile = new File("DumpTest.dmp");
       try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile, DumpAccessFlag.add, DumpAccessFlag.delete)) {

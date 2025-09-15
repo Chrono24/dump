@@ -22,7 +22,6 @@ import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -329,7 +328,7 @@ public class Dump<E> implements DumpInput<E> {
    public void add( E o ) throws IOException {
       synchronized ( this ) {
          if ( !_mode.contains(DumpAccessFlag.add) ) {
-            throw new AccessControlException("Add operation not allowed with current modes.");
+            throw new IllegalStateException("Add operation not allowed with current modes.");
          }
          assertOpen();
          for ( DumpIndex<E> index : _indexes ) {
@@ -432,7 +431,7 @@ public class Dump<E> implements DumpInput<E> {
     */
    public E delete( long pos ) {
       if ( !_mode.contains(DumpAccessFlag.delete) ) {
-         throw new AccessControlException("Delete operation not allowed with current modes.");
+         throw new IllegalStateException("Delete operation not allowed with current modes.");
       }
 
       synchronized ( this ) {
@@ -490,7 +489,7 @@ public class Dump<E> implements DumpInput<E> {
     */
    public void flushMeta() throws IOException {
       if ( isReadonly() ) {
-         throw new AccessControlException("Flushing meta-data not allowed in read-only mode.");
+         throw new IllegalStateException("Flushing meta-data not allowed in read-only mode.");
       }
 
       writeMeta();
@@ -509,7 +508,7 @@ public class Dump<E> implements DumpInput<E> {
    @Nullable
    public E get( long pos ) {
       if ( !_mode.contains(DumpAccessFlag.read) ) {
-         throw new AccessControlException("Get operation not allowed with current modes.");
+         throw new IllegalStateException("Get operation not allowed with current modes.");
       }
 
       synchronized ( this ) {
@@ -772,7 +771,7 @@ public class Dump<E> implements DumpInput<E> {
 
                if ( indexesUpdatable ) {
                   if ( !_mode.contains(DumpAccessFlag.updateInPlace) ) {
-                     throw new AccessControlException("Update in place operation not allowed with current modes.");
+                     throw new IllegalStateException("Update in place operation not allowed with current modes.");
                   }
                   overwrite(pos, nb);
                   for ( DumpIndex<E> index : _indexes ) {
@@ -794,7 +793,7 @@ public class Dump<E> implements DumpInput<E> {
 
          // overwriting was not possible -> delete old version and add new version
          if ( !_mode.contains(DumpAccessFlag.updateOutOfPlace) ) {
-            throw new AccessControlException("Update out of place operation not allowed with current modes.");
+            throw new IllegalStateException("Update out of place operation not allowed with current modes.");
          }
 
          E old = delete(pos);
@@ -956,7 +955,7 @@ public class Dump<E> implements DumpInput<E> {
 
    void addIndex( DumpIndex<E> index ) {
       if ( !_mode.contains(DumpAccessFlag.indices) ) {
-         throw new AccessControlException("Using indices is not allowed with current modes.");
+         throw new IllegalStateException("Using indices is not allowed with current modes.");
       }
 
       assertOpen();
@@ -1076,7 +1075,7 @@ public class Dump<E> implements DumpInput<E> {
 
    void writeMeta() throws IOException {
       if ( isReadonly() ) {
-         throw new AccessControlException("Writing meta-data not allowed in read-only mode.");
+         throw new IllegalStateException("Writing meta-data not allowed in read-only mode.");
       }
 
       getMetaRAF().seek(0);
@@ -1122,10 +1121,10 @@ public class Dump<E> implements DumpInput<E> {
                _log.warn(msg, dumpVersion, codeVersion, "not doing anything due to read-only mode");
                switch ( getOnIncompatibleVersion() ) {
                case RenameDump: {
-                  throw new AccessControlException("Renaming Dump is not allowed in read-only mode.");
+                  throw new IllegalStateException("Renaming Dump is not allowed in read-only mode.");
                }
                case DeleteDump: {
-                  throw new AccessControlException("Deleting Dump is not allowed in read-only mode.");
+                  throw new IllegalStateException("Deleting Dump is not allowed in read-only mode.");
                }
                case RewriteDump: {
                   // do nothing, allowing potential readers to write the contents to some other dump in proper externalization version
@@ -1720,7 +1719,7 @@ public class Dump<E> implements DumpInput<E> {
          super(new ResettableBufferedInputStream(new FileInputStream(_dumpFile), 0, false), 0, streamProvider);
          _sourceFile = dumpFile;
          if ( !_mode.contains(DumpAccessFlag.read) ) {
-            throw new AccessControlException("Read operation not allowed with current modes.");
+            throw new IllegalStateException("Read operation not allowed with current modes.");
          }
          _positionAwareInputStream = (ResettableBufferedInputStream)_primitiveInputStream;
          _positionAwareInputStream._lastElementBytes = new byte[1024];
