@@ -792,7 +792,7 @@ public interface ExternalizableBean extends Externalizable {
                if ( f != null ) {
                   f.set(this, o);
                }
-               //               throw new IllegalArgumentException("The field type " + fieldTypes[i] + " in class " + getClass()
+               //               throw new IllegalArgumentException("The field type " + fieldTypes[i] + " in " + getClass()
                //                  + " is unsupported by util.dump.ExternalizableBean.");
             }
             }
@@ -802,7 +802,7 @@ public interface ExternalizableBean extends Externalizable {
          throw e;
       }
       catch ( Throwable e ) {
-         throw new RuntimeException("Failed to read externalized instance. Maybe the field order was changed? class " + getClass(), e);
+         throw new RuntimeException("Failed to read externalized instance. Maybe the field order was changed? " + getClass(), e);
       }
    }
 
