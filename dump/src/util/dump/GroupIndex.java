@@ -174,31 +174,39 @@ public class GroupIndex<E> extends DumpIndex<E>implements NonUniqueIndex<E> {
 
    @Override
    public TLongList getAllPositions() {
-      TLongList pos = new TLongArrayList(100000);
-      Collection<Positions> c = _fieldIsInt ? _lookupInt.valueCollection() : (_fieldIsLong ? _lookupLong.valueCollection() : _lookupObject.values());
-      for ( Positions p : c ) {
-         ensureSorting(p);
-         for ( int i = 0, length = p.size(); i < length; i++ ) {
-            long pp = p.get(i);
-            if ( !_dump._deletedPositions.contains(pp) ) {
-               pos.add(pp);
+      synchronized ( _dump ) {
+         Collection<Positions> c = _fieldIsInt ? _lookupInt.valueCollection() : (_fieldIsLong ? _lookupLong.valueCollection() : _lookupObject.values());
+         int numPos = 0;
+         for ( Positions positions : c ) {
+            numPos += positions.size();
+         }
+         TLongList pos = new TLongArrayList(numPos, -1L);
+         for ( Positions p : c ) {
+            ensureSorting(p);
+            for ( int i = 0, length = p.size(); i < length; i++ ) {
+               long pp = p.get(i);
+               if ( !_dump._deletedPositions.contains(pp) ) {
+                  pos.add(pp);
+               }
             }
          }
+         pos.sort();
+         return pos;
       }
-      pos.sort();
-      return pos;
    }
 
    @Override
    public int getNumKeys() {
-      if ( _lookupObject != null ) {
-         return _lookupObject.size();
-      }
-      if ( _lookupLong != null ) {
-         return _lookupLong.size();
-      }
-      if ( _lookupInt != null ) {
-         return _lookupInt.size();
+      synchronized ( _dump ) {
+         if ( _lookupObject != null ) {
+            return _lookupObject.size();
+         }
+         if ( _lookupLong != null ) {
+            return _lookupLong.size();
+         }
+         if ( _lookupInt != null ) {
+            return _lookupInt.size();
+         }
       }
       throw new IllegalStateException("weird, all lookup maps are null");
    }
