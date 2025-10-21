@@ -1,20 +1,25 @@
 package util.dump;
 
-import static java.nio.ByteOrder.BIG_ENDIAN;
+import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
+import static java.lang.foreign.MemoryLayout.PathElement.sequenceElement;
+import static java.lang.foreign.MemoryLayout.sequenceLayout;
+import static java.lang.foreign.MemoryLayout.structLayout;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
 import static java.nio.channels.FileChannel.MapMode.READ_WRITE;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
+import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.SPARSE;
 import static java.nio.file.StandardOpenOption.WRITE;
-import static jdk.incubator.foreign.MemoryLayout.PathElement.groupElement;
-import static jdk.incubator.foreign.MemoryLayout.PathElement.sequenceElement;
-import static jdk.incubator.foreign.MemoryLayout.sequenceLayout;
-import static jdk.incubator.foreign.MemoryLayout.structLayout;
-import static jdk.incubator.foreign.MemoryLayouts.JAVA_LONG;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.foreign.Arena;
+import java.lang.foreign.GroupLayout;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
 import java.lang.invoke.VarHandle;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,11 +35,6 @@ import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
-import jdk.incubator.foreign.GroupLayout;
-import jdk.incubator.foreign.MemoryLayout;
-import jdk.incubator.foreign.MemoryLayout.PathElement;
-import jdk.incubator.foreign.MemorySegment;
-import jdk.incubator.foreign.ResourceScope;
 import util.dump.reflection.FieldAccessor;
 import util.dump.reflection.FieldFieldAccessor;
 import util.dump.reflection.Reflection;
@@ -48,13 +48,12 @@ import util.dump.reflection.Reflection;
  * <p>
  * Requires compiler and runtime parameter --add-modules=jdk.incubator.foreign in order to work.
  */
+@SuppressWarnings({ "preview", "Since15" })
 public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueConstraint<E> {
 
    private static final Logger _log = LoggerFactory.getLogger(MmapLongIdIndex.class);
 
    private static final boolean PARANOIA_MODE = true;
-
-   private static final VarHandle LONG_ARRAY_ACCESS = sequenceLayout(JAVA_LONG).varHandle(long.class, sequenceElement());
 
    public static <E> MmapLongIdIndex<E> forClosedRange( Dump<E> dump, String fieldName, long minKey, long maxKey ) throws NoSuchFieldException {
       return new ClosedRangeMmapLongIdIndex<>(dump, fieldName, minKey, maxKey);
@@ -76,22 +75,6 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       return n > 0L && (n & n - 1L) == 0L;
    }
 
-   private static long longArrayGet( MemorySegment array, long index ) {
-      return (long)LONG_ARRAY_ACCESS.get(array, index);
-   }
-
-   private static long longArrayGetVolatile( MemorySegment array, long index ) {
-      return (long)LONG_ARRAY_ACCESS.getVolatile(array, index);
-   }
-
-   private static void longArraySet( MemorySegment array, long index, long pos ) {
-      LONG_ARRAY_ACCESS.set(array, index, pos);
-   }
-
-   private static void longArraySetVolatile( MemorySegment array, long index, long pos ) {
-      LONG_ARRAY_ACCESS.setVolatile(array, index, pos);
-   }
-
    protected final ToLongFunction<Object> _getKey;
 
    protected final Path _lookupPath;
@@ -101,11 +84,13 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
    private final IndexCorrections _indexCorrections = new IndexCorrections();
 
-   protected FileLayout _fileLayout;
-   private   Header     _header;
+   protected FileLayout  _fileLayout;
+   private   FileChannel _readWriteFileChannel;
+   private   Header      _header;
 
    private          MemorySegment _tableSegment;
-   private volatile long          _tableCapacity;
+   private          long          _tableCapacity;
+   private volatile VarHandle     _longArrayAccess;
 
    private MmapLongIdIndex( Dump<E> dump, String fieldName, long minKey, long maxKey ) throws NoSuchFieldException {
       this(dump, new FieldFieldAccessor(Reflection.getField(dump._beanClass, fieldName)), minKey, maxKey);
@@ -169,6 +154,10 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       _log.info("{} closing...", _lookupPath.getFileName());
       flushTable();
       closeHeader();
+
+      if ( _readWriteFileChannel != null ) {
+         _readWriteFileChannel.close();
+      }
 
       super.close();
       _log.info("{} closed.", _lookupPath.getFileName());
@@ -272,7 +261,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    }
 
    protected long capacity( MemorySegment segment ) {
-      return segment.byteSize() / Long.BYTES;
+      return segment.byteSize() / JAVA_LONG.byteSize();
    }
 
    @Override
@@ -436,86 +425,88 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          return false;
       }
 
-      try (ResourceScope autoClosedScope = ResourceScope.newConfinedScope()) {
+      try (Arena arena = Arena.ofConfined()) {
          long fileSize = Files.size(_lookupPath);
          if ( fileSize < LeadIn.byteSize() ) {
             _log.warn("{} file is too small to contain even the header. Will rebuild index.", _lookupPath.getFileName());
             return false;
          }
 
-         LeadIn leadIn = new LeadIn(MemorySegment.mapFile(_lookupPath, 0, LeadIn.byteSize(), READ_ONLY, autoClosedScope));
+         try (FileChannel readonlyFileChannel = FileChannel.open(_lookupPath, READ)) {
+            LeadIn leadIn = new LeadIn(readonlyFileChannel.map(READ_ONLY, 0, LeadIn.byteSize(), arena));
 
-         if ( leadIn.getFileMagic() != LeadIn.FILE_MAGIC ) {
-            _log.warn("{} has wrong file magic. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-
-         boolean checkRequired = false;
-
-         // version or size unset, unknown, or mismatching
-         if ( !Header.isReadable(leadIn.getLayoutVersion()) ) {
-            _log.warn("{} has unknown header version {}. Will rebuild index.", _lookupPath.getFileName(), leadIn.getLayoutVersion());
-            return false;
-         }
-
-         // pin everything to current one-and-only version
-         if ( leadIn.getLayoutVersion() != Header.getCurrentLayout().layoutVersion() ) {
-            _log.warn("{} has mismatching header version. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-
-         FileLayout fileLayout = Header.layoutByVersion(leadIn.getLayoutVersion());
-
-         if ( leadIn.getHeaderBytes() < fileLayout.headerBytes() ) {
-            _log.warn("{} has mismatching header size information. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-
-         Header header = new Header(fileLayout, MemorySegment.mapFile(_lookupPath, 0, leadIn.getHeaderBytes(), READ_ONLY, autoClosedScope));
-
-         if ( header.getTableOffset() <= 0 || !isPowerOfTwo(header.getTableOffset()) ) {
-            _log.warn("{} has inconsistent alignment information. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-         // file size mismatch
-         if ( header.getTableOffset() + header.getTableBytes() != fileSize ) {
-            _log.warn("{} has mismatching file size information. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-
-         // configuration changes
-         if ( header.getMinKey() != _minKey || header.getMaxKey() != _maxKey ) {
-            _log.warn("{} has mismatching key bounds. Will rebuild index.", _lookupPath.getFileName());
-            return false;
-         }
-
-         // not closed properly, or inconsistency between dump file and header state
-         if ( header.getOpenedTimestamp() >= header.getClosedTimestamp() ) {
-            _log.info("{} was not closed properly, checking consistency...", _lookupPath.getFileName());
-            checkRequired = true;
-         }
-
-         // plausibility checks
-         if ( !checkNumKeys(header) ) {
-            _log.info("{} has stored implausible numKeys, checking consistency...", _lookupPath.getFileName());
-            checkRequired = true;
-         }
-
-         if ( PARANOIA_MODE && !checkRequired ) {
-            _log.info("{} hardcoded paranoia mode enabled, checking consistency...", _lookupPath.getFileName());
-            checkRequired = true;
-         }
-
-         if ( checkRequired ) {
-            MemorySegment tableSegment = MemorySegment.mapFile(_lookupPath, header.getTableOffset(), header.getTableBytes(), READ_ONLY, autoClosedScope);
-            if ( !checkConsistency(header, tableSegment) ) {
+            if ( leadIn.getFileMagic() != LeadIn.FILE_MAGIC ) {
+               _log.warn("{} has wrong file magic. Will rebuild index.", _lookupPath.getFileName());
                return false;
             }
+
+            boolean checkRequired = false;
+
+            // version or size unset, unknown, or mismatching
+            if ( !Header.isReadable(leadIn.getLayoutVersion()) ) {
+               _log.warn("{} has unknown header version {}. Will rebuild index.", _lookupPath.getFileName(), leadIn.getLayoutVersion());
+               return false;
+            }
+
+            // pin everything to current one-and-only version
+            if ( leadIn.getLayoutVersion() != Header.getCurrentLayout().layoutVersion() ) {
+               _log.warn("{} has mismatching header version. Will rebuild index.", _lookupPath.getFileName());
+               return false;
+            }
+
+            FileLayout fileLayout = Header.layoutByVersion(leadIn.getLayoutVersion());
+
+            if ( leadIn.getHeaderBytes() < fileLayout.headerBytes() ) {
+               _log.warn("{} has mismatching header size information. Will rebuild index.", _lookupPath.getFileName());
+               return false;
+            }
+
+            Header header = new Header(fileLayout, readonlyFileChannel.map(READ_ONLY, 0, leadIn.getHeaderBytes(), arena));
+
+            if ( header.getTableOffset() <= 0 || !isPowerOfTwo(header.getTableOffset()) ) {
+               _log.warn("{} has inconsistent alignment information. Will rebuild index.", _lookupPath.getFileName());
+               return false;
+            }
+            // file size mismatch
+            if ( header.getTableOffset() + header.getTableBytes() != fileSize ) {
+               _log.warn("{} has mismatching file size information. Will rebuild index.", _lookupPath.getFileName());
+               return false;
+            }
+
+            // configuration changes
+            if ( header.getMinKey() != _minKey || header.getMaxKey() != _maxKey ) {
+               _log.warn("{} has mismatching key bounds. Will rebuild index.", _lookupPath.getFileName());
+               return false;
+            }
+
+            // not closed properly, or inconsistency between dump file and header state
+            if ( header.getOpenedTimestamp() >= header.getClosedTimestamp() ) {
+               _log.info("{} was not closed properly, checking consistency...", _lookupPath.getFileName());
+               checkRequired = true;
+            }
+
+            // plausibility checks
+            if ( !checkNumKeys(header) ) {
+               _log.info("{} has stored implausible numKeys, checking consistency...", _lookupPath.getFileName());
+               checkRequired = true;
+            }
+
+            if ( PARANOIA_MODE && !checkRequired ) {
+               _log.info("{} hardcoded paranoia mode enabled, checking consistency...", _lookupPath.getFileName());
+               checkRequired = true;
+            }
+
+            if ( checkRequired ) {
+               MemorySegment tableSegment = readonlyFileChannel.map(READ_ONLY, header.getTableOffset(), header.getTableBytes(), arena);
+               if ( !checkConsistency(header, tableSegment) ) {
+                  return false;
+               }
+            }
+
+            _fileLayout = fileLayout; // store this, so we won't have to restart at the lead-in
+
+            return true;
          }
-
-         _fileLayout = fileLayout; // store this, so we won't have to restart at the lead-in
-
-         return true;
       }
       catch ( Exception argh ) {
          throw new RuntimeException(argh);
@@ -629,13 +620,31 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       return arrayIndex + _minKey; // real key
    }
 
+   private long longArrayGet( MemorySegment array, long index ) {
+      return (long)_longArrayAccess.get(array, index);
+   }
+
+   private long longArrayGetVolatile( MemorySegment array, long index ) {
+      return (long)_longArrayAccess.getVolatile(array, index);
+   }
+
+   private void longArraySet( MemorySegment array, long index, long pos ) {
+      _longArrayAccess.set(array, index, pos);
+   }
+
+   private void longArraySetVolatile( MemorySegment array, long index, long pos ) {
+      _longArrayAccess.setVolatile(array, index, pos);
+   }
+
    private MemorySegment mapHeaderSegment() throws IOException {
-      return MemorySegment.mapFile(_lookupPath, 0, _fileLayout.headerBytes(), READ_WRITE, ResourceScope.newImplicitScope());
+      _readWriteFileChannel = FileChannel.open(_lookupPath, READ, WRITE);
+      return _readWriteFileChannel.map(READ_WRITE, 0, _fileLayout.headerBytes(), Arena.ofAuto());
    }
 
    private void mapTableSegment() throws IOException {
-      _tableSegment = MemorySegment.mapFile(_lookupPath, _header.getTableOffset(), _header.getTableBytes(), READ_WRITE, ResourceScope.newImplicitScope());
+      _tableSegment = _readWriteFileChannel.map(READ_WRITE, _header.getTableOffset(), _header.getTableBytes(), Arena.ofAuto());
       _tableCapacity = capacity(_tableSegment);
+      _longArrayAccess = sequenceLayout(_tableCapacity, JAVA_LONG).varHandle(sequenceElement());
    }
 
    private void openExisting() throws IOException {
@@ -734,9 +743,6 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
             JAVA_LONG.withName("tableOffset"), //
 
-            JAVA_LONG.withName("minKey"), //
-            JAVA_LONG.withName("maxKey"), //
-
             MemoryLayout.paddingLayout(Arch.AmdZen.INSTANCE.cacheLineBytes()), // keep things cache-line-aligned
 
             // these change during open/close
@@ -754,8 +760,11 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
             // changes whenever keys are added/removed
             JAVA_LONG.withName("numKeys"), //
 
+            JAVA_LONG.withName("minKey"), //
+            JAVA_LONG.withName("maxKey"), //
+
             MemoryLayout.paddingLayout(Arch.AmdZen.INSTANCE.cacheLineBytes()) // keep things cache-line-aligned
-      ).withBitAlignment(8 * Arch.AmdZen.INSTANCE.cacheLineBytes()).withName("headerLayoutV1")) //
+      ).withByteAlignment(Arch.AmdZen.INSTANCE.cacheLineBytes()).withName("headerLayoutV1")) //
             .sanityCheck();
 
       static {
@@ -777,9 +786,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
       private final MemorySegment _memorySegment;
 
-      private final VarHandle _fileMagic;
-      private final VarHandle _layoutVersion;
-      private final VarHandle _headerBytes;
+      private final LeadIn _leadIn;
 
       private final VarHandle _tableOffset;
 
@@ -799,22 +806,19 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
 
          _memorySegment = memorySegment;
 
-         PathElement leadIn = groupElement("leadIn");
-         _fileMagic = layout.varHandle(long.class, leadIn, groupElement("fileMagic"));
-         _layoutVersion = layout.varHandle(long.class, leadIn, groupElement("layoutVersion"));
-         _headerBytes = layout.varHandle(long.class, leadIn, groupElement("headerBytes"));
+         _leadIn = new LeadIn(memorySegment);
 
-         _tableOffset = layout.varHandle(long.class, groupElement("tableOffset"));
+         _tableOffset = layout.varHandle(groupElement("tableOffset"));
 
-         _minKey = layout.varHandle(long.class, groupElement("minKey"));
-         _maxKey = layout.varHandle(long.class, groupElement("maxKey"));
+         _minKey = layout.varHandle(groupElement("minKey"));
+         _maxKey = layout.varHandle(groupElement("maxKey"));
 
-         _openedTimestamp = layout.varHandle(long.class, groupElement("openedTimestamp"));
-         _closedTimestamp = layout.varHandle(long.class, groupElement("closedTimestamp"));
+         _openedTimestamp = layout.varHandle(groupElement("openedTimestamp"));
+         _closedTimestamp = layout.varHandle(groupElement("closedTimestamp"));
 
-         _tableBytes = layout.varHandle(long.class, groupElement("tableBytes"));
+         _tableBytes = layout.varHandle(groupElement("tableBytes"));
 
-         _numKeys = layout.varHandle(long.class, groupElement("numKeys"));
+         _numKeys = layout.varHandle(groupElement("numKeys"));
       }
 
       public void flush() {
@@ -858,15 +862,15 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       }
 
       public void setFileMagic( long fileMagic ) {
-         setVolatile(_fileMagic, fileMagic);
+         _leadIn.setFileMagic(fileMagic);
       }
 
       public void setHeaderBytes( long headerBytes ) {
-         setVolatile(_headerBytes, headerBytes);
+         _leadIn.setHeaderBytes(headerBytes);
       }
 
       public void setLayoutVersion( long layoutVersion ) {
-         setVolatile(_layoutVersion, layoutVersion);
+         _leadIn.setLayoutVersion(layoutVersion);
       }
 
       public void setMaxKey( long maxKey ) {
@@ -1000,44 +1004,57 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    /**
     * Helper for reading in the bare minimum from existing files.
     */
-   private static final class LeadIn {
+   private record LeadIn(MemorySegment _memorySegment) {
 
       public static final long FILE_MAGIC = 0x6861696C756C6672L;
 
       private static final GroupLayout LAYOUT = structLayout( //
 
-            JAVA_LONG.withName("fileMagic").withOrder(BIG_ENDIAN), //
+            JAVA_LONG.withName("fileMagic"), //
             JAVA_LONG.withName("layoutVersion"), //
             JAVA_LONG.withName("headerBytes") //
 
-      ).withBitAlignment(8 * Arch.AmdZen.INSTANCE.cacheLineBytes()).withName("leadIn");
+      ).withByteAlignment(Arch.AmdZen.INSTANCE.cacheLineBytes()).withName("leadIn");
 
-      private static final VarHandle _fileMagic     = LAYOUT.varHandle(long.class, groupElement("fileMagic"));
-      private static final VarHandle _layoutVersion = LAYOUT.varHandle(long.class, groupElement("layoutVersion"));
-      private static final VarHandle _headerBytes   = LAYOUT.varHandle(long.class, groupElement("headerBytes"));
+      private static final VarHandle _fileMagic     = LAYOUT.varHandle(groupElement("fileMagic"));
+      private static final VarHandle _layoutVersion = LAYOUT.varHandle(groupElement("layoutVersion"));
+      private static final VarHandle _headerBytes   = LAYOUT.varHandle(groupElement("headerBytes"));
 
       public static long byteSize() {
          return LAYOUT.byteSize(); // minimum read length: header version and bytes
       }
 
-      private final MemorySegment _memorySegment;
-
-      public LeadIn( MemorySegment memorySegment ) {
-         _memorySegment = memorySegment;
-      }
-
       public long getFileMagic() {
-         return (Long)_fileMagic.get(_memorySegment);
+         return get(_fileMagic);
       }
 
       public long getHeaderBytes() {
-         return (Long)_headerBytes.get(_memorySegment);
+         return get(_headerBytes);
       }
 
       public long getLayoutVersion() {
-         return (Long)_layoutVersion.get(_memorySegment);
+         return get(_layoutVersion);
       }
 
+      public void setFileMagic( long fileMagic ) {
+         setVolatile(_fileMagic, fileMagic);
+      }
+
+      public void setHeaderBytes( long headerBytes ) {
+         setVolatile(_headerBytes, headerBytes);
+      }
+
+      public void setLayoutVersion( long layoutVersion ) {
+         setVolatile(_layoutVersion, layoutVersion);
+      }
+
+      private long get( VarHandle varHandle ) {
+         return (long)varHandle.get(_memorySegment);
+      }
+
+      private void setVolatile( VarHandle varHandle, long value ) {
+         varHandle.setVolatile(_memorySegment, value);
+      }
    }
 
 
@@ -1055,6 +1072,8 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          _header = header;
          _tableSegment = tableSegment;
          _segmentCapacity = capacity(_tableSegment);
+
+         _longArrayAccess = sequenceLayout(_segmentCapacity, JAVA_LONG).varHandle(sequenceElement());
       }
 
       public boolean perform() throws IOException {
@@ -1064,8 +1083,8 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          checkIndexContents();
 
          if ( PARANOIA_MODE ) {
-            try (ResourceScope scope = ResourceScope.newConfinedScope()) {
-               MemorySegment dumpSegment = preloadDump(_dump, scope);
+            try (Arena arena = Arena.ofConfined()) {
+               MemorySegment dumpSegment = preloadDump(_dump, arena);
 
                checkDumpContents();
 
@@ -1161,17 +1180,20 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
          _log.info("{} had its contents checked in {}", _lookupPath.getFileName(), duration);
       }
 
-      private MemorySegment preloadDump( Dump<E> dump, ResourceScope scope ) throws IOException {
+      private MemorySegment preloadDump( Dump<E> dump, Arena arena ) throws IOException {
          long start = System.nanoTime();
 
          Path dumpPath = Paths.get(dump._dumpFile.getPath());
          long dumpSize = dump.getDumpSize();
-         MemorySegment dumpSegment = MemorySegment.mapFile(dumpPath, 0, dumpSize, READ_ONLY, scope);
-         dumpSegment.load(); // force-fetch into memory
 
-         Duration duration = Duration.ofNanos(System.nanoTime() - start);
-         _log.info("{} was mapped and preloaded in {}", dumpPath.getFileName(), duration);
-         return dumpSegment;
+         try (FileChannel readOnlyFileChannel = FileChannel.open(dumpPath, READ)) {
+            MemorySegment dumpSegment = readOnlyFileChannel.map(READ_ONLY, 0, dumpSize, arena);
+            dumpSegment.load(); // force-fetch into memory
+
+            Duration duration = Duration.ofNanos(System.nanoTime() - start);
+            _log.info("{} was mapped and preloaded in {}", dumpPath.getFileName(), duration);
+            return dumpSegment;
+         }
       }
 
       private void preloadSegment() {
