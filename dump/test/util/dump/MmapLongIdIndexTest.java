@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+import java.util.function.BiFunction;
 
 import org.assertj.core.util.Arrays;
 import org.junit.After;
@@ -58,6 +59,11 @@ public class MmapLongIdIndexTest {
 
    private final int  _dumpSize;
    private final long _negativeOffset;
+
+   private final BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> _createOpenRangeIndex   = //
+         ( dump, field ) -> MmapLongIdIndex.forOpenRange(dump, new FieldFieldAccessor(field), minId());
+   private final BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> _createClosedRangeIndex = //
+         ( dump, field ) -> MmapLongIdIndex.forClosedRange(dump, new FieldFieldAccessor(field), minId(), maxId());
 
    public MmapLongIdIndexTest( Integer dumpSize ) {
       _dumpSize = dumpSize;
@@ -131,84 +137,80 @@ public class MmapLongIdIndexTest {
       }
    }
 
+
    @Test
-   public void testIntKeyIndex() throws Exception {
+   public void testIntKey_OpenRangeIndex() throws Exception {
+      testIntKeyIndex(_createOpenRangeIndex);
+   }
+
+   @Test
+   public void testIntKey_ClosedRangeIndex() throws Exception {
+      testIntKeyIndex(_createClosedRangeIndex);
+   }
+
+   private void testIntKeyIndex(BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex) throws Exception {
       testIndex("_idInt", new TestConfiguration() {
 
          @Override
          public Object createKey( int id ) {
             return id;
          }
-      });
+      }, createIndex);
    }
 
    @Test
-   public void testLongKeyIndex() throws Exception {
+   public void testLongKey_OpenRangeIndex() throws Exception {
+      testLongKeyIndex(_createOpenRangeIndex);
+   }
+
+   @Test
+   public void testLongKey_ClosedRangeIndex() throws Exception {
+      testLongKeyIndex(_createClosedRangeIndex);
+   }
+
+   private void testLongKeyIndex(BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex) throws Exception {
       testIndex("_idLong", new TestConfiguration() {
 
          @Override
          public Object createKey( int id ) {
             return (long)id;
          }
-      });
+      }, createIndex);
    }
 
    @Test
-   public void testLongObjectKeyIndex() throws Exception {
+   public void testLongObjectKey_OpenRangeIndex() throws Exception {
+      testLongObjectKeyIndex(_createOpenRangeIndex);
+   }
+
+   @Test
+   public void testLongObjectKey_ClosedRangeIndex() throws Exception {
+      testLongObjectKeyIndex(_createClosedRangeIndex);
+   }
+
+   private void testLongObjectKeyIndex(BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex) throws Exception {
       testIndex("_idLongObject", new TestConfiguration() {
 
          @Override
          public Object createKey( int id ) {
             return (long)id;
          }
-      });
+      }, createIndex);
    }
 
    @Test
-   public void testRecreateIndex() throws NoSuchFieldException, IOException {
-      File dumpFile = new File(_tmpdir, DUMP_FILENAME);
-
-      Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
-      try {
-         Field field = Reflection.getField(Bean.class, "_idInt");
-         UniqueConstraint<Bean> index = MmapLongIdIndex.forOpenRange(dump, new FieldFieldAccessor(field), _negativeOffset);
-
-         validateNumKeys(dump, index);
-
-         fillDump(dump);
-
-         validateNumKeys(dump, index);
-
-         dump.close();
-
-         System.out.println("Closing and re-opening dump, deleting index");
-         Assert.assertTrue("Failed to delete index",
-               new File(_tmpdir, DUMP_FILENAME + "._idInt.mmap.lookup").delete() && !new File(_tmpdir, DUMP_FILENAME + "._idInt.mmap.lookup").exists());
-
-         dump = new Dump<>(Bean.class, dumpFile);
-         index = MmapLongIdIndex.forOpenRange(dump, new FieldFieldAccessor(field), _negativeOffset);
-
-         long t = System.currentTimeMillis();
-         for ( int j = 0; j < READ_NUMBER; j++ ) {
-            int i = _random.nextInt(_dumpSize);
-            Bean bean = index.lookup(i);
-            Assert.assertNotNull("no Bean for index " + i, bean);
-            Assert.assertEquals(i, bean._idInt);
-            Assert.assertTrue(bean._data.startsWith(i + "-"));
-         }
-         System.out.println("Read " + READ_NUMBER + " instances from dump. Needed " + (System.currentTimeMillis() - t) / (float)READ_NUMBER + " ms/instance.");
-
-         Bean nonExistingBean = index.lookup(_dumpSize + 1);
-         Assert.assertNull(nonExistingBean);
-      }
-      finally {
-         dump.close();
-      }
+   public void testRecreateIndex_ClosedRange() throws IOException, NoSuchFieldException {
+      testRecreateIndex(_createClosedRangeIndex);
    }
 
-   protected void testIndex( String fieldName, TestConfiguration config ) throws Exception {
+   @Test
+   public void testRecreateIndex_OpenRange() throws IOException, NoSuchFieldException {
+      testRecreateIndex(_createOpenRangeIndex);
+   }
 
-      testLateOpenIndex(fieldName, config);
+   protected void testIndex( String fieldName, TestConfiguration config,  BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex) throws Exception {
+
+      testLateOpenIndex(fieldName, config, createIndex);
 
       File dumpFile = new File(_tmpdir, DUMP_FILENAME);
 
@@ -368,7 +370,15 @@ public class MmapLongIdIndexTest {
       System.out.println("Written " + _dumpSize + " instances to dump. Needed " + (System.currentTimeMillis() - t) / (float)_dumpSize + " ms/instance.");
    }
 
-   private void testLateOpenIndex( String fieldName, TestConfiguration config ) throws Exception {
+   private long maxId() {
+      return _dumpSize;
+   }
+
+   private long minId() {
+      return _negativeOffset;
+   }
+
+   private void testLateOpenIndex( String fieldName, TestConfiguration config, BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex ) throws Exception {
       File dumpFile = new File(_tmpdir, DUMP_FILENAME);
 
       /* create dump and index */
@@ -377,7 +387,7 @@ public class MmapLongIdIndexTest {
          Field field = Reflection.getField(Bean.class, fieldName);
 
          fillDump(dump);
-         UniqueConstraint<Bean> index = MmapLongIdIndex.forOpenRange(dump, new FieldFieldAccessor(field), _negativeOffset);
+         UniqueConstraint<Bean> index = createIndex.apply(dump, field);
 
          testLookup(config, field, index);
       }
@@ -429,6 +439,47 @@ public class MmapLongIdIndexTest {
          }
       }
       System.out.println("Read " + READ_NUMBER + " instances from dump. Needed " + (System.currentTimeMillis() - t) / (float)READ_NUMBER + " ms/instance.");
+   }
+
+   private void testRecreateIndex( BiFunction<Dump<Bean>, Field, MmapLongIdIndex<Bean>> createIndex ) throws NoSuchFieldException, IOException {
+      File dumpFile = new File(_tmpdir, DUMP_FILENAME);
+
+      Dump<Bean> dump = new Dump<>(Bean.class, dumpFile);
+      try {
+         Field field = Reflection.getField(Bean.class, "_idInt");
+         UniqueConstraint<Bean> index = createIndex.apply(dump, field);
+
+         validateNumKeys(dump, index);
+
+         fillDump(dump);
+
+         validateNumKeys(dump, index);
+
+         dump.close();
+
+         System.out.println("Closing and re-opening dump, deleting index");
+         Assert.assertTrue("Failed to delete index",
+               new File(_tmpdir, DUMP_FILENAME + "._idInt.mmap.lookup").delete() && !new File(_tmpdir, DUMP_FILENAME + "._idInt.mmap.lookup").exists());
+
+         dump = new Dump<>(Bean.class, dumpFile);
+         index = MmapLongIdIndex.forOpenRange(dump, new FieldFieldAccessor(field), _negativeOffset);
+
+         long t = System.currentTimeMillis();
+         for ( int j = 0; j < READ_NUMBER; j++ ) {
+            int i = _random.nextInt(_dumpSize);
+            Bean bean = index.lookup(i);
+            Assert.assertNotNull("no Bean for index " + i, bean);
+            Assert.assertEquals(i, bean._idInt);
+            Assert.assertTrue(bean._data.startsWith(i + "-"));
+         }
+         System.out.println("Read " + READ_NUMBER + " instances from dump. Needed " + (System.currentTimeMillis() - t) / (float)READ_NUMBER + " ms/instance.");
+
+         Bean nonExistingBean = index.lookup(_dumpSize + 1);
+         Assert.assertNull(nonExistingBean);
+      }
+      finally {
+         dump.close();
+      }
    }
 
    private void validateNumKeys( Dump<Bean> dump, UniqueConstraint<?> index ) {
