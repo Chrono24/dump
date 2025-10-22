@@ -25,11 +25,8 @@
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
                <encoding>UTF-8</encoding>
-               <source>21</source>
-               <target>21</target>
-               <compilerArgs>
-                  <arg>--enable-preview</arg>
-               </compilerArgs>
+               <source>22</source>
+               <target>22</target>
             </configuration>
          </plugin>
          <plugin>
@@ -50,7 +47,6 @@
             <configuration>
                <argLine>
                   --add-opens java.base/java.util=ALL-UNNAMED
-                  --enable-preview
                </argLine>
             </configuration>
          </plugin>

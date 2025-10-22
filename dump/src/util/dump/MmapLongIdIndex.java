@@ -48,7 +48,6 @@ import util.dump.reflection.Reflection;
  * <p>
  * Requires compiler and runtime parameter --add-modules=jdk.incubator.foreign in order to work.
  */
-@SuppressWarnings({ "preview", "Since15" })
 public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueConstraint<E> {
 
    private static final Logger _log = LoggerFactory.getLogger(MmapLongIdIndex.class);
@@ -621,19 +620,19 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
    }
 
    private long longArrayGet( MemorySegment array, long index ) {
-      return (long)_longArrayAccess.get(array, index);
+      return (long)_longArrayAccess.get(array, 0L, index);
    }
 
    private long longArrayGetVolatile( MemorySegment array, long index ) {
-      return (long)_longArrayAccess.getVolatile(array, index);
+      return (long)_longArrayAccess.getVolatile(array, 0L, index);
    }
 
    private void longArraySet( MemorySegment array, long index, long pos ) {
-      _longArrayAccess.set(array, index, pos);
+      _longArrayAccess.set(array, 0L, index, pos);
    }
 
    private void longArraySetVolatile( MemorySegment array, long index, long pos ) {
-      _longArrayAccess.setVolatile(array, index, pos);
+      _longArrayAccess.setVolatile(array, 0L, index, pos);
    }
 
    private MemorySegment mapHeaderSegment() throws IOException {
@@ -854,7 +853,7 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       }
 
       public void incrementNumKeys( long difference ) {
-         _numKeys.getAndAdd(_memorySegment, difference);
+         _numKeys.getAndAdd(_memorySegment, 0L, difference);
       }
 
       public void setClosedTimestamp( long closedTimestamp ) {
@@ -898,11 +897,11 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       }
 
       private long getVolatile( VarHandle varHandle ) {
-         return (long)varHandle.getVolatile(_memorySegment);
+         return (long)varHandle.getVolatile(_memorySegment, 0L);
       }
 
       private void setVolatile( VarHandle varHandle, long value ) {
-         varHandle.setVolatile(_memorySegment, value);
+         varHandle.setVolatile(_memorySegment, 0L, value);
       }
    }
 
@@ -1049,11 +1048,11 @@ public abstract class MmapLongIdIndex<E> extends DumpIndex<E> implements UniqueC
       }
 
       private long get( VarHandle varHandle ) {
-         return (long)varHandle.get(_memorySegment);
+         return (long)varHandle.get(_memorySegment, 0L);
       }
 
       private void setVolatile( VarHandle varHandle, long value ) {
-         varHandle.setVolatile(_memorySegment, value);
+         varHandle.setVolatile(_memorySegment, 0L, value);
       }
    }
 
