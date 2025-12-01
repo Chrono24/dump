@@ -28,7 +28,7 @@ import util.dump.io.IOUtils;
 /**
  * Using Compression enum values in StreamProviders you can compress your dumps transparently.
  *
- * With <code>Compression.LZ4</code> and <code>Compression.Snappy</code> there are two options for very fast
+ * With <code>Compression.LZ4</code> there is an option for very fast
  * compression, where one might expect, that performance improves overall, simply because you do less IO.
  * Unfortunately, in a single-threaded use-case with no other IO load this is not the case, even when using 
  * the fastest option, LZ4. Externalization creates high load on CPU, compression increases that load. 
@@ -49,7 +49,6 @@ public enum Compression implements ByteArrayPacker {
    GZipLevel7,
    GZipLevel8,
    GZipLevel9,
-   Snappy,
    LZ4,
    Zstd1,
    Zstd5,
@@ -101,7 +100,6 @@ public enum Compression implements ByteArrayPacker {
    @Override
    public boolean isPackedSizeInFirstFourBytes() {
       switch ( this ) {
-      case Snappy:
       case LZ4:
       case Zstd1:
       case Zstd5:
@@ -136,8 +134,6 @@ public enum Compression implements ByteArrayPacker {
          return gzip(8, bytes, bytesLength);
       case GZipLevel9:
          return gzip(9, bytes, bytesLength);
-      case Snappy:
-         return snappy(bytes, bytesLength, target);
       case LZ4:
          return lz4(bytes, bytesLength, target);
       case Zstd1:
@@ -168,8 +164,6 @@ public enum Compression implements ByteArrayPacker {
       case GZipLevel8:
       case GZipLevel9:
          return gunzip(source, sourceLength);
-      case Snappy:
-         return unsnappy(source, sourceLength, target);
       case LZ4:
          return unLZ4(source, target);
       case Zstd1:
@@ -256,19 +250,6 @@ public enum Compression implements ByteArrayPacker {
       return target;
    }
 
-   private byte[] snappy( byte[] data, int dataLength, byte[] target ) {
-      int length = org.iq80.snappy.Snappy.maxCompressedLength(dataLength) + 4;
-      if ( target == null || target.length < length ) {
-         target = new byte[length];
-      }
-      int compressedSize = org.iq80.snappy.Snappy.compress(data, 0, dataLength, target, 4);
-      target[0] = (byte)((compressedSize >>> 24) & 0xFF);
-      target[1] = (byte)((compressedSize >>> 16) & 0xFF);
-      target[2] = (byte)((compressedSize >>> 8) & 0xFF);
-      target[3] = (byte)((compressedSize) & 0xFF);
-      return target;
-   }
-
    private byte[] unLZ4( byte[] bytes, byte[] target ) {
       LZ4FastDecompressor lz4Decompressor = getLZ4Decompressor();
       int length = (((bytes[0] & 0xff) << 24) + ((bytes[1] & 0xff) << 16) + ((bytes[2] & 0xff) << 8) + (bytes[3] & 0xff));
@@ -295,18 +276,6 @@ public enum Compression implements ByteArrayPacker {
       } else {
          Zstd.decompressByteArray(target, 0, target.length,  source, 0, sourceLength );
       }
-      return target;
-   }
-
-   private byte[] unsnappy( byte[] bytes, int sourceLength, byte[] target ) {
-      int length = org.iq80.snappy.Snappy.getUncompressedLength(bytes, 0);
-      if ( length > 100_000_000 ) {
-         throw new RuntimeException("insane size for decompressed length:" + length + " - failing now to prevent OutOfMemoryErrors");
-      }
-      if ( target == null || target.length < length ) {
-         target = new byte[length];
-      }
-      org.iq80.snappy.Snappy.uncompress(bytes, 0, sourceLength, target, 0);
       return target;
    }
 

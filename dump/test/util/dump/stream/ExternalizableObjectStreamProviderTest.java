@@ -51,8 +51,6 @@ public class ExternalizableObjectStreamProviderTest {
       test(provider, testBeans);
       provider = new ExternalizableObjectStreamProvider(Compression.GZipLevel9);
       test(provider, testBeans);
-      provider = new ExternalizableObjectStreamProvider(Compression.Snappy);
-      test(provider, testBeans);
       provider = new ExternalizableObjectStreamProvider(Compression.LZ4);
       test(provider, testBeans);
 
@@ -83,7 +81,6 @@ public class ExternalizableObjectStreamProviderTest {
       test(stProvider, testExternalizableBeans);
       stProvider = new SingleTypeObjectStreamProvider<>(TestExternalizableBean.class, Compression.GZipLevel9);
       test(stProvider, testExternalizableBeans);
-      stProvider = new SingleTypeObjectStreamProvider<>(TestExternalizableBean.class, Compression.Snappy);
       test(stProvider, testExternalizableBeans);
       stProvider = new SingleTypeObjectStreamProvider<>(TestExternalizableBean.class, Compression.LZ4);
       test(stProvider, testExternalizableBeans);

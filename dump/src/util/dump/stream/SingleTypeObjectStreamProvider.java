@@ -15,7 +15,7 @@ import java.io.OutputStream;
  *  - the {@link Externalizable}s may not use readObject() during readExternal() or writeObject(o) during writeExternal()<br><br>
  *  - if you put an instance twice into the dump, you will have two instances after deserialization in memory<br><br>
  *
- * This ObjectStreamProvider can compress the streams using Gzip, Snappy, LZ4 or ZStd. Use the appropriate constructor with a CompressionType.
+ * This ObjectStreamProvider can compress the streams using Gzip, LZ4 or ZStd. Use the appropriate constructor with a CompressionType.
  * Use compression only if you have limited storage space on your server, an IO bottleneck on your server, or if you access the dumps via
  * network and have a network bottleneck.
  *
