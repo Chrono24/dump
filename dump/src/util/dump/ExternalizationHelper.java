@@ -30,8 +30,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.annotation.Nonnull;
-
+import org.jspecify.annotations.NonNull;
 import org.slf4j.LoggerFactory;
 
 import util.dump.ExternalizableBean.externalizationPadding;
@@ -853,7 +852,7 @@ class ExternalizationHelper {
       }
    }
 
-   @Nonnull
+   @NonNull
    private static ThrowingSupplier<Object> getGenericReader( ObjectInput in, Class genericType, ClassConfig config, Class[] lastNonDefaultClass ) {
       if ( Externalizable.class.isAssignableFrom(genericType) ) {
          return () -> readExternalizable(in, genericType, lastNonDefaultClass, config);
@@ -1099,7 +1098,7 @@ class ExternalizationHelper {
       }
 
       @Override
-      public void write( @Nonnull byte[] bytes, int start, int length ) {
+      public void write( @NonNull byte[] bytes, int start, int length ) {
          if ( (start < 0) || (start > bytes.length) || (length < 0) || (start + length > bytes.length) || (start + length < 0) ) {
             throw new IndexOutOfBoundsException();
          }
@@ -1462,7 +1461,7 @@ class ExternalizationHelper {
       Class         _defaultGenericType1;
 
       @Override
-      public int compareTo( @Nonnull FieldInfo o ) {
+      public int compareTo( @NonNull FieldInfo o ) {
          int fieldIndex = _fieldIndex & 0xFF;
          int otherFieldIndex = o._fieldIndex & 0xFF;
          return Integer.compare(fieldIndex, otherFieldIndex);

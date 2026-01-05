@@ -40,9 +40,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -612,7 +611,7 @@ public class Dump<E> implements DumpInput<E> {
       return _dumpFile;
    }
 
-   @Nonnull
+   @NonNull
    public DumpReader<E> getDumpReader() {
       assertOpen();
       try {
@@ -659,7 +658,7 @@ public class Dump<E> implements DumpInput<E> {
     */
    @SuppressWarnings("resource")
    @Override
-   @Nonnull
+   @NonNull
    public DumpIterator<E> iterator() {
       assertOpen();
       try {
@@ -1100,21 +1099,6 @@ public class Dump<E> implements DumpInput<E> {
       }
    }
 
-   private int getVersionFromDump() {
-      String dumpVersionString = _metaData.get("externalizationVersion");
-      return dumpVersionString == null ? 0 : Integer.parseInt(dumpVersionString);
-   }
-
-   private int getVersionFromCode() {
-      externalizationVersion version = _beanClass.getAnnotation(externalizationVersion.class);
-      return version == null ? 0 : version.version();
-   }
-
-   private ExternalizableBean.OnIncompatibleVersion getOnIncompatibleVersion() {
-      externalizationVersion version = _beanClass.getAnnotation(externalizationVersion.class);
-      return version == null ? ExternalizableBean.OnIncompatibleVersion.RenameDump : version.onIncompatibleVersion();
-   }
-
    private void checkVersion() throws IOException {
       int codeVersion = getVersionFromCode();
       int dumpVersion = getVersionFromDump();
@@ -1197,6 +1181,21 @@ public class Dump<E> implements DumpInput<E> {
          l |= (bytes[i] & 0xff) << (j << 3);
       }
       return l;
+   }
+
+   private ExternalizableBean.OnIncompatibleVersion getOnIncompatibleVersion() {
+      externalizationVersion version = _beanClass.getAnnotation(externalizationVersion.class);
+      return version == null ? ExternalizableBean.OnIncompatibleVersion.RenameDump : version.onIncompatibleVersion();
+   }
+
+   private int getVersionFromCode() {
+      externalizationVersion version = _beanClass.getAnnotation(externalizationVersion.class);
+      return version == null ? 0 : version.version();
+   }
+
+   private int getVersionFromDump() {
+      String dumpVersionString = _metaData.get("externalizationVersion");
+      return dumpVersionString == null ? 0 : Integer.parseInt(dumpVersionString);
    }
 
    private void initInstantiationData() {
@@ -1290,7 +1289,7 @@ public class Dump<E> implements DumpInput<E> {
       }
 
       @Override
-      public int compareTo( @Nonnull ElementAndPosition<D> o ) {
+      public int compareTo( @NonNull ElementAndPosition<D> o ) {
          return Long.compare(_position, o._position);
       }
 
@@ -1332,13 +1331,13 @@ public class Dump<E> implements DumpInput<E> {
       }
 
       @Override
-      public void write( @Nonnull byte[] b ) throws IOException {
+      public void write( @NonNull byte[] b ) throws IOException {
          _out.write(b);
          _n += b.length;
       }
 
       @Override
-      public void write( @Nonnull byte[] b, int off, int len ) throws IOException {
+      public void write( @NonNull byte[] b, int off, int len ) throws IOException {
          _out.write(b, off, len);
          _n += len;
       }
@@ -1553,7 +1552,7 @@ public class Dump<E> implements DumpInput<E> {
        *              or an I/O error occurs.
        */
       @Override
-      public/*synchronized*/int read( @Nonnull byte[] b, int off, int len ) throws IOException {
+      public/*synchronized*/int read( @NonNull byte[] b, int off, int len ) throws IOException {
          // we don't share instances of this class or synchronize access on a different level, so this method is not synchronized
          getBufIfOpen(); // Check for closed stream
          if ( (off | len | (off + len) | (b.length - (off + len))) < 0 ) {
@@ -1773,7 +1772,7 @@ public class Dump<E> implements DumpInput<E> {
       }
 
       @Override
-      @Nonnull
+      @NonNull
       public DumpIterator<E> iterator() {
          return this;
       }

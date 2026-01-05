@@ -7,9 +7,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import util.dump.Dump;
 import util.dump.DumpInput;
 import util.dump.DumpReader;
@@ -81,7 +80,7 @@ public class InfiniteSorter<E> implements Iterable<E> {
       init(DEFAULT_MAX_ELEMENTS_IN_MEMORY, -1, null, TempFileProvider.DEFAULT_PROVIDER);
    }
 
-   public InfiniteSorter( @Nonnull File tempDir ) {
+   public InfiniteSorter( @NonNull File tempDir ) {
       init(DEFAULT_MAX_ELEMENTS_IN_MEMORY, -1, null, new TempFileProvider(tempDir));
    }
 
@@ -93,11 +92,11 @@ public class InfiniteSorter<E> implements Iterable<E> {
       init(maxElementsInMemory, bufferSize, null, TempFileProvider.DEFAULT_PROVIDER);
    }
 
-   public InfiniteSorter( int maxElementsInMemory, int bufferSize, @Nonnull File tempDir ) {
+   public InfiniteSorter( int maxElementsInMemory, int bufferSize, @NonNull File tempDir ) {
       init(maxElementsInMemory, -1, null, new TempFileProvider(tempDir));
    }
 
-   public InfiniteSorter( int maxElementsInMemory, int bufferSize, @Nonnull File tempDir, @Nullable ObjectStreamProvider objectStreamProvider,
+   public InfiniteSorter( int maxElementsInMemory, int bufferSize, @NonNull File tempDir, @Nullable ObjectStreamProvider objectStreamProvider,
          @Nullable Comparator<E> comparator ) {
       init(maxElementsInMemory, bufferSize, comparator, new TempFileProvider(tempDir));
       this._objectStreamProvider = objectStreamProvider;
@@ -198,7 +197,7 @@ public class InfiniteSorter<E> implements Iterable<E> {
       return _tempFileProvider;
    }
 
-   public @Nonnull Iterator<E> iterator() {
+   public @NonNull Iterator<E> iterator() {
       try {
          return getSortedElements().iterator();
       }

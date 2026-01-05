@@ -8,8 +8,7 @@ import java.io.ObjectOutput;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.Nullable;
 import util.dump.stream.ExternalizableObjectStreamProvider;
 import util.dump.stream.ObjectStreamProvider;
 

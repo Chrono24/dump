@@ -3,7 +3,7 @@ package util.dump.stream;
 import java.io.Externalizable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 public interface ByteArrayPacker {
