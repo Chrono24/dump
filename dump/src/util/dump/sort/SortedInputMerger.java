@@ -7,9 +7,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import util.dump.DumpInput;
 import util.dump.DumpReader;
 
@@ -146,7 +145,7 @@ class SortedInputMerger<E> implements DumpInput<E>, Iterator<E> {
    }
 
    @Override
-   public @Nonnull Iterator<E> iterator() {
+   public @NonNull Iterator<E> iterator() {
       return this;
    }
 

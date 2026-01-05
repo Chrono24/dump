@@ -11,8 +11,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
-import javax.annotation.Nullable;
-
 import com.github.luben.zstd.Zstd;
 import com.github.luben.zstd.ZstdDictCompress;
 import com.github.luben.zstd.ZstdDictDecompress;
@@ -21,6 +19,7 @@ import com.github.luben.zstd.ZstdDictTrainer;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
+import org.jspecify.annotations.Nullable;
 import util.dump.cache.LRUCache;
 import util.dump.io.IOUtils;
 

@@ -10,9 +10,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -42,6 +39,8 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,12 +89,12 @@ public class SearchIndex<E> extends DumpIndex<E> {
       return new SortBuilder();
    }
 
-   public static <T> SearchIndexBuilder<T> with( @Nonnull Dump<T> dump, @Nonnull FieldAccessor idFieldAccessor,
-         @Nonnull BiConsumer<Document, T> documentBuilder ) {
+   public static <T> SearchIndexBuilder<T> with( @NonNull Dump<T> dump, @NonNull FieldAccessor idFieldAccessor,
+         @NonNull BiConsumer<Document, T> documentBuilder ) {
       return new SearchIndexBuilder<>(dump, idFieldAccessor, documentBuilder);
    }
 
-   public static <T> SearchIndexBuilder<T> with( @Nonnull Dump<T> dump, @Nonnull String idFieldName, @Nonnull BiConsumer<Document, T> documentBuilder )
+   public static <T> SearchIndexBuilder<T> with( @NonNull Dump<T> dump, @NonNull String idFieldName, @NonNull BiConsumer<Document, T> documentBuilder )
          throws NoSuchFieldException {
       return new SearchIndexBuilder<>(dump, new FieldFieldAccessor(Reflection.getField(dump._beanClass, idFieldName)), documentBuilder);
    }
@@ -111,8 +110,8 @@ public class SearchIndex<E> extends DumpIndex<E> {
    private DirectoryTaxonomyReader _taxoReader;
    private int                     _version;
 
-   private SearchIndex( @Nonnull Dump<E> dump, @Nonnull FieldAccessor idFieldAccessor, @Nonnull BiConsumer<Document, E> documentBuilder,
-         @Nonnull IndexWriterConfig config, @Nonnull QueryParser queryParser, @Nonnull FacetsConfig facetsConfig, int version ) {
+   private SearchIndex( @NonNull Dump<E> dump, @NonNull FieldAccessor idFieldAccessor, @NonNull BiConsumer<Document, E> documentBuilder,
+         @NonNull IndexWriterConfig config, @NonNull QueryParser queryParser, @NonNull FacetsConfig facetsConfig, int version ) {
 
       super(dump, idFieldAccessor, new File(dump.getDumpFile().getParentFile(), dump.getDumpFile().getName() + ".search.index"));
 

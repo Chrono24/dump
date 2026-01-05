@@ -1,11 +1,10 @@
 package util.dump;
 
-import javax.annotation.Nonnull;
-
 import java.io.File;
 import java.io.IOException;
 
 import junit.framework.Assert;
+import org.jspecify.annotations.NonNull;
 
 import org.junit.Test;
 
@@ -91,7 +90,7 @@ public class InfiniteSorterTest {
       }
 
       @Override
-      public int compareTo( @Nonnull Bean o ) {
+      public int compareTo( @NonNull Bean o ) {
          return (Long.compare(_id, o._id));
       }
    }

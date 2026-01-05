@@ -14,10 +14,11 @@
 
    <dependencies>
       <dependency>
-         <groupId>com.google.code.findbugs</groupId>
-         <artifactId>jsr305</artifactId>
-         <version>3.0.2</version>
+         <groupId>org.jspecify</groupId>
+         <artifactId>jspecify</artifactId>
+         <version>1.0.0</version>
       </dependency>
+
       <dependency>
          <groupId>net.sf.trove4j</groupId>
          <artifactId>trove4j</artifactId>
@@ -37,10 +38,8 @@
       <dependency>
          <groupId>com.google.guava</groupId>
          <artifactId>guava</artifactId>
-         <version>33.2.1-jre</version>
+         <version>33.5.0-jre</version>
       </dependency>
-
    </dependencies>
-
 </project>
 

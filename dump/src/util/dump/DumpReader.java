@@ -10,9 +10,8 @@ import java.io.ObjectInput;
 import java.io.OptionalDataException;
 import java.util.Iterator;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import util.dump.stream.ExternalizableObjectStreamProvider;
 import util.dump.stream.ObjectStreamProvider;
 
@@ -169,7 +168,7 @@ public class DumpReader<E> implements DumpInput<E>, Iterator<E> {
    }
 
    @Override
-   public @Nonnull Iterator<E> iterator() {
+   public @NonNull Iterator<E> iterator() {
       return this;
    }
 
