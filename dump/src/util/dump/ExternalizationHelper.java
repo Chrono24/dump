@@ -271,7 +271,6 @@ class ExternalizationHelper {
       }
 
       return switch ( containerType ) {
-         default -> d;
          case UnmodifiableCollection -> Collections.unmodifiableCollection(d);
 
          case UnmodifiableList -> Collections.unmodifiableList((List)d);
@@ -279,6 +278,7 @@ class ExternalizationHelper {
 
          case ImmutableList -> List.copyOf(d);
          case ImmutableSet -> Set.copyOf(d);
+         default -> d;
       };
    }
 
@@ -1188,6 +1188,7 @@ class ExternalizationHelper {
 
       Class           _class;
       ClassLoader     _classLoader;
+      externalize[]   _annotations;
       FieldAccessor[] _fieldAccessors;
       byte[]          _fieldIndexes;
       FieldType[]     _fieldTypes;
@@ -1217,6 +1218,7 @@ class ExternalizationHelper {
 
          Collections.sort(fieldInfos);
 
+         _annotations = new externalize[fieldInfos.size()];
          _fieldAccessors = new FieldAccessor[fieldInfos.size()];
          _fieldIndexes = new byte[fieldInfos.size()];
          _fieldTypes = new FieldType[fieldInfos.size()];
@@ -1225,6 +1227,7 @@ class ExternalizationHelper {
          _defaultGenericTypes1 = new Class[fieldInfos.size()];
          for ( int i = 0, length = fieldInfos.size(); i < length; i++ ) {
             FieldInfo fi = fieldInfos.get(i);
+            _annotations[i] = fi._annotation;
             _fieldAccessors[i] = fi._fieldAccessor;
             _fieldIndexes[i] = fi._fieldIndex;
             _fieldTypes[i] = fi._fieldType;
@@ -1240,6 +1243,8 @@ class ExternalizationHelper {
 
       private void addFieldInfo( List<FieldInfo> fieldInfos, externalize annotation, FieldAccessor fieldAccessor, Class type, String fieldName ) {
          FieldInfo fi = new FieldInfo();
+         fi._annotation = annotation;
+
          fi._fieldAccessor = fieldAccessor;
 
          byte index = annotation.value();
@@ -1453,6 +1458,7 @@ class ExternalizationHelper {
 
    static class FieldInfo implements Comparable<FieldInfo> {
 
+      externalize   _annotation;
       FieldAccessor _fieldAccessor;
       FieldType     _fieldType;
       byte          _fieldIndex;
