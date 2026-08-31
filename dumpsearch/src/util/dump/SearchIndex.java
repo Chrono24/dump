@@ -39,6 +39,7 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.IOUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -109,6 +110,9 @@ public class SearchIndex<E> extends DumpIndex<E> {
    private FacetsConfig            _facetsConfig;
    private DirectoryTaxonomyReader _taxoReader;
    private int                     _version;
+   private Directory               _writerDir;
+   private Directory               _taxoWriterDir;
+   private Directory               _taxoReaderDir;
 
    private SearchIndex( @NonNull Dump<E> dump, @NonNull FieldAccessor idFieldAccessor, @NonNull BiConsumer<Document, E> documentBuilder,
          @NonNull IndexWriterConfig config, @NonNull QueryParser queryParser, @NonNull FacetsConfig facetsConfig, int version ) {
@@ -130,18 +134,9 @@ public class SearchIndex<E> extends DumpIndex<E> {
    public void close() throws IOException {
       commit();
 
-      if ( _writer != null ) {
-         _writer.close();
-      }
-      if ( _taxoWriter != null ) {
-         _taxoWriter.close();
-      }
-      if ( _searcherManager != null ) {
-         _searcherManager.close();
-      }
-      if ( _taxoReader != null ) {
-         _taxoReader.close();
-      }
+      // readers must be closed before the writers they were opened on, and the Directory instances
+      // must be closed last, once nothing still has open files on them
+      IOUtils.close(_searcherManager, _taxoReader, _writer, _taxoWriter, _writerDir, _taxoWriterDir, _taxoReaderDir);
 
       super.close();
    }
@@ -379,13 +374,13 @@ public class SearchIndex<E> extends DumpIndex<E> {
    @Override
    protected void initLookupOutputStream() {
       try {
-         Directory facetDir = FSDirectory.open(new File(getLookupFile().getAbsolutePath() + "-facets").toPath());
-         _taxoWriter = new DirectoryTaxonomyWriter(facetDir);
+         _taxoWriterDir = FSDirectory.open(new File(getLookupFile().getAbsolutePath() + "-facets").toPath());
+         _taxoWriter = new DirectoryTaxonomyWriter(_taxoWriterDir);
          _taxoWriter.commit();
 
-         Directory dir = FSDirectory.open(getLookupFile().toPath());
+         _writerDir = FSDirectory.open(getLookupFile().toPath());
          _config.setOpenMode(OpenMode.CREATE_OR_APPEND);
-         _writer = new IndexWriter(dir, _config);
+         _writer = new IndexWriter(_writerDir, _config);
          _writer.commit();
 
       }
@@ -408,8 +403,8 @@ public class SearchIndex<E> extends DumpIndex<E> {
       }
 
       try {
-         Directory facetDir = FSDirectory.open(new File(getLookupFile().getAbsolutePath() + "-facets").toPath());
-         _taxoReader = new DirectoryTaxonomyReader(facetDir);
+         _taxoReaderDir = FSDirectory.open(new File(getLookupFile().getAbsolutePath() + "-facets").toPath());
+         _taxoReader = new DirectoryTaxonomyReader(_taxoReaderDir);
       }
       catch ( IOException e ) {
          throw new RuntimeException("Failed to initialize dump facet index with lookup file " + getLookupFile() + "-facets", e);

@@ -1,6 +1,7 @@
 package util.dump;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static util.dump.SearchIndex.SortBuilder.Direction.ASC;
 import static util.dump.SearchIndex.SortBuilder.Direction.DESC;
 import static util.dump.SearchIndex.sort;
@@ -8,6 +9,7 @@ import static util.dump.SearchIndex.with;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,6 +20,8 @@ import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.facet.FacetField;
 import org.apache.lucene.facet.FacetResult;
+import org.apache.lucene.store.AlreadyClosedException;
+import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 import org.junit.After;
 import org.junit.Before;
@@ -162,6 +166,30 @@ public class SearchIndexTest {
             assertThat(lav.label).isEqualTo("X");
             assertThat(lav.value).isEqualTo(1);
          });
+      }
+   }
+
+   /**
+    * Regression test for the leaked {@link Directory} handles that used to keep the Lucene index directory locked
+    * and writable after {@link SearchIndex#close()} returned, which surfaced as flaky {@code DirectoryNotEmptyException}s
+    * in callers deleting the underlying folder right after close (e.g. JUnit 5's {@code @TempDir}).
+    */
+   @Test
+   public void testCloseReleasesUnderlyingLuceneDirectories() throws Exception {
+      File dumpFile = new File(_tmpdir, DUMP_FILENAME);
+      SearchIndex<Bean> index;
+
+      try (Dump<Bean> dump = new Dump<>(Bean.class, dumpFile)) {
+         index = with(dump, "_idLong", ( doc, o ) -> doc.add(new FacetField("facetField", o._data))).build();
+         dump.add(new Bean(1, "row"));
+      } // closes dump, which cascades to index.close()
+
+      for ( String fieldName : new String[]{ "_writerDir", "_taxoWriterDir", "_taxoReaderDir" } ) {
+         Field field = SearchIndex.class.getDeclaredField(fieldName);
+         field.setAccessible(true);
+         Directory dir = (Directory)field.get(index);
+         assertThat(dir).as(fieldName + " was never opened").isNotNull();
+         assertThatThrownBy(dir::listAll).as(fieldName + " was not closed by SearchIndex.close()").isInstanceOf(AlreadyClosedException.class);
       }
    }
 
