@@ -58,6 +58,10 @@ class ExternalizationHelper {
    static final Map<Class, Boolean>      CLASS_CHANGED_INCOMPATIBLY = new ConcurrentHashMap<>();
    static final ThreadLocal<StreamCache> STREAM_CACHE               = ThreadLocal.withInitial(StreamCache::new);
 
+   /** Buffers larger than this are not retained by a {@link BytesCache} after a write finished; they are replaced by a small one. */
+   static final int BYTES_CACHE_MAX_RETAINED_CAPACITY = 1024 * 1024;
+   static final int BYTES_CACHE_INITIAL_CAPACITY      = 1024;
+
    static {
       try {
          boolean config = Boolean.parseBoolean(System.getProperty("ExternalizableBean.USE_UNSAFE_FIELD_ACCESSORS", "true"));
@@ -1075,7 +1079,7 @@ class ExternalizationHelper {
       protected int    _count;
 
       public BytesCache() {
-         this(1024);
+         this(BYTES_CACHE_INITIAL_CAPACITY);
       }
 
       public BytesCache( int size ) {
@@ -1085,11 +1089,14 @@ class ExternalizationHelper {
          _buffer = new byte[size];
       }
 
+      /**
+       * Marks the buffer as empty and drops an oversized backing array, so that it is not retained (e.g. by a long-living thread).
+       */
       public void reset() {
          _count = 0;
-         if ( _buffer.length > 1048576 ) {
+         if ( _buffer.length > BYTES_CACHE_MAX_RETAINED_CAPACITY ) {
             // let it shrink
-            _buffer = new byte[1024];
+            _buffer = new byte[BYTES_CACHE_INITIAL_CAPACITY];
          }
       }
 

@@ -815,6 +815,7 @@ public interface ExternalizableBean extends Externalizable {
 
    @Override
    default void writeExternal( ObjectOutput out ) throws IOException {
+      StreamCache streamCache = null;
       try {
          ClassConfig _config = getConfig(getClass());
 
@@ -826,7 +827,6 @@ public interface ExternalizableBean extends Externalizable {
          }
 
          ObjectOutput originalOut = out;
-         StreamCache streamCache = null;
          BytesCache bytesCache = null;
          ObjectOutput cachingOut = null;
 
@@ -1207,12 +1207,23 @@ public interface ExternalizableBean extends Externalizable {
                originalOut.writeInt(bytesCache.size());
                bytesCache.writeTo(originalOut);
                out = originalOut;
+               bytesCache.reset();
                streamCache._inUse = false;
             }
          }
       }
       catch ( Exception e ) {
          throw new RuntimeException("Failed to externalize class " + getClass().getName(), e);
+      }
+      finally {
+         if ( streamCache != null && streamCache._inUse ) {
+            // a field failed to write: the cached ObjectOutput may hold partial state, so never reuse this StreamCache.
+            // Replace it in the thread-local (if it is the one from there), which also drops its buffer.
+            streamCache._bytesCache.reset();
+            if ( STREAM_CACHE.get() == streamCache ) {
+               STREAM_CACHE.set(new StreamCache());
+            }
+         }
       }
    }
 
